@@ -1,5 +1,3 @@
----
-
 ## 🏏 StumpVision — Pickup Cricket Scorer
 
 **StumpVision** is a lightweight, mobile-friendly web app built in **PHP + JavaScript** to keep score during casual or competitive cricket matches.
