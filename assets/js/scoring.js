@@ -1,7 +1,7 @@
-import {curInn} from './state.js';
+import {curInn, ensureBatter, ensureBowler} from './state.js';
 
 export const symbol = (e)=>{
-  if(e.extra==='wd') return 'wd';
+  if(e.extra==='wd') return e.wideRuns ? `wd+${e.wideRuns-1}` : 'wd';
   if(e.extra==='nb') return e.batRuns ? `nb+${e.batRuns}` : 'nb';
   if(e.extra==='b')  return 'b';
   if(e.extra==='lb') return 'lb';
@@ -9,10 +9,48 @@ export const symbol = (e)=>{
   return String(e.runs);
 };
 
+// update batter and bowler stats for this event
+function applyStats(inn, e){
+  const strikerName = e.batters?.[e.striker] || '';
+  const bowlerName  = e.bowler || '';
+  ensureBatter(inn, strikerName);
+  ensureBowler(inn, bowlerName);
+
+  const bat = inn.batStats[strikerName];
+  const bowl= inn.bowlStats[bowlerName];
+
+  // BOWLER: runs conceded (wd & nb count to bowler; b & lb don't)
+  let conceded = 0;
+  if(e.extra==='wd') conceded += e.runs;
+  else if(e.extra==='nb') conceded += e.runs;
+  else if(e.extra==='b' || e.extra==='lb') conceded += 0;
+  else conceded += e.runs;
+
+  // BATTER: runs off the bat and balls faced rules
+  let batRuns = 0, ballFaced = 0;
+  if(e.extra==='nb'){ batRuns = e.batRuns||0; ballFaced = 0; }
+  else if(e.extra==='wd'){ batRuns = 0; ballFaced = 0; }
+  else if(e.extra==='b' || e.extra==='lb'){ batRuns = 0; ballFaced = 1; }
+  else { batRuns = e.runs; ballFaced = 1; }
+
+  // apply
+  if(bat){
+    bat.R += batRuns;
+    bat.B += ballFaced;
+    if(batRuns===4) bat[4] += 1;
+    if(batRuns===6) bat[6] += 1;
+  }
+  if(bowl){
+    if(e.legal) bowl.balls += 1;
+    bowl.R += conceded;
+    if(e.wicket) bowl.W += 1;
+  }
+}
+
 /**
  * handleEvent(ev, State, opts)
  * - ev: 'dot','1','2','3','4','6','wicket','wide','noball','bye','legbye','undo'
- * - opts: { batRuns?: number } for 'noball'
+ * - opts: { batRuns?: number } for 'noball', { runOns?: number } for 'wide'
  */
 export function handleEvent(ev, State, opts={}){
   if(ev==='undo') return undo(State);
@@ -33,20 +71,24 @@ export function handleEvent(ev, State, opts={}){
     case '6': entry.runs=6; break;
     case 'wicket': entry.runs=0; entry.wicket=true; break;
 
-    case 'wide':
-      entry.runs=1; entry.extra='wd'; entry.legal=false;
-      inn.extras.wd += 1;
+    case 'wide': {
+      const runOns = Number(opts.runOns ?? 0); // 0..5
+      entry.extra='wd'; entry.legal=false;
+      entry.wideRuns = 1 + runOns;
+      entry.runs = entry.wideRuns;
+      inn.extras.wd += entry.wideRuns;
+      // strike rotates if they actually ran an odd number (ignoring the 1 penalty)
+      if(runOns % 2 === 1) inn.striker = 1 - inn.striker;
       break;
+    }
 
     case 'noball': {
       const batRuns = Number(opts.batRuns ?? 0); // 0/1/2/3/4/6
       entry.extra='nb'; entry.legal=false; entry.batRuns = batRuns;
       entry.runs = 1 + batRuns;
-      inn.extras.nb += 1;               // only the penalty 1 goes to extras
-      // Strike rotates on odd bat runs (even though ball not legal)
-      if(batRuns % 2 === 1) inn.striker = 1 - inn.striker;
-      // Free hit applies to the next LEGAL ball
-      inn.freeHit = true;
+      inn.extras.nb += 1;          // only penalty 1 to extras
+      if(batRuns % 2 === 1) inn.striker = 1 - inn.striker; // rotate on odd bat runs
+      inn.freeHit = true;          // next legal ball
       break;
     }
 
@@ -57,32 +99,32 @@ export function handleEvent(ev, State, opts={}){
       entry.extra='lb'; entry.legal=true; entry.runs=1; inn.extras.lb += 1; break;
   }
 
-  // Apply free hit rule: if this is a legal ball after a no-ball,
-  // a wicket (except run-out etc., which we're not modeling) doesn't count.
+  // Apply free hit: on next LEGAL ball, wicket (other than run-out) doesn't count
   if(inn.freeHit && entry.legal){
     if(entry.wicket){
       entry.wicket=false;
-      entry.freeHitWicketIgnored = true; // marker for the log if desired
+      entry.freeHitWicketIgnored = true;
     }
-    // Free hit consumed after the first legal ball
     inn.freeHit = false;
   }
 
-  // Push entry + update counts
+  // push + total
   inn.timeline.push(entry);
   inn.runs += entry.runs;
   if(entry.wicket) inn.wickets++;
 
+  // counts and over strip
   if(entry.legal){
     inn.balls++; inn.legalBalls++;
     inn.overBalls.push(symbol(entry));
-    // strike rotation for odd runs on legal balls
     if(entry.runs %2 === 1 && !entry.extra) inn.striker = 1-inn.striker;
     if(inn.legalBalls % bpo === 0){ endOver(State); }
   } else {
-    // illegal ball still shows in strip
     inn.overBalls.push(symbol(entry));
   }
+
+  // stats
+  applyStats(inn, entry);
 }
 
 export function endOver(State){
@@ -107,32 +149,31 @@ export function changeInnings(State){
 export function undo(State){
   const inn=curInn();
   const last = inn.timeline.pop(); if(!last) return;
+
+  // reverse totals
   inn.runs -= last.runs; if(last.wicket) inn.wickets=Math.max(0,inn.wickets-1);
 
-  // reverse extras/freeHit if needed
-  if(last.extra==='wd') inn.extras.wd = Math.max(0, inn.extras.wd-1);
-  if(last.extra==='nb'){
-    inn.extras.nb = Math.max(0, inn.extras.nb-1);
-    // If last entry was a no-ball, free hit would have been set. Restore to true
-    // only if there wasn't any legal ball after it (simple approach: set true;
-    // recalc below will clear on next legal).
-    inn.freeHit = false; // conservative reset; free-hit is consumed on legal balls anyway
-  }
-  if(last.extra==='b')  inn.extras.b  = Math.max(0, inn.extras.b-1);
-  if(last.extra==='lb') inn.extras.lb = Math.max(0, inn.extras.lb-1);
+  // reverse extras
+  if(last.extra==='wd') inn.extras.wd = Math.max(0, inn.extras.wd - (last.wideRuns||1));
+  if(last.extra==='nb') inn.extras.nb = Math.max(0, inn.extras.nb - 1);
+  if(last.extra==='b')  inn.extras.b  = Math.max(0, inn.extras.b - 1);
+  if(last.extra==='lb') inn.extras.lb = Math.max(0, inn.extras.lb - 1);
 
+  // reverse counts and strip
   if(last.legal){
-    // remove from over strip, recalc counts for robustness
     if(inn.overBalls.length) inn.overBalls.pop();
     recalcCounts(State, inn);
   } else {
     if(inn.overBalls.length) inn.overBalls.pop();
   }
+
+  // reverse stats (recompute for simplicity)
+  recomputeAllStats(inn);
 }
 
 export function rebuildOverStrip(State){
   const inn=curInn(); inn.overBalls=[]; inn.legalBalls=0;
-  const bpo=State.meta.ballsPerOver; // reconstruct last partial over
+  const bpo=State.meta.ballsPerOver;
   for(let i=Math.max(0, inn.timeline.length-bpo); i<inn.timeline.length; i++){
     const e=inn.timeline[i]; if(!e) break; inn.overBalls.push(symbol(e)); if(e.legal) inn.legalBalls++; }
 }
@@ -142,10 +183,8 @@ export function recalcCounts(State, inn){
   let lb=0; const bpo=State.meta.ballsPerOver;
   let freeHitPending=false;
   for(const e of inn.timeline){
-    // reconstruct freeHit state: if we saw an nb, set pending; if legal ball after, consume
     if(e.extra==='nb') freeHitPending = true;
     if(e.legal && freeHitPending){ freeHitPending=false; }
-
     if(e.legal){
       lb++;
       if(lb===bpo){ inn.overs++; lb=0; inn.overBalls=[]; }
@@ -156,5 +195,13 @@ export function recalcCounts(State, inn){
     inn.balls += e.legal?1:0;
   }
   inn.legalBalls = lb;
-  inn.freeHit = freeHitPending; // if an nb was last and no legal ball since
+  inn.freeHit = freeHitPending;
+}
+
+function recomputeAllStats(inn){
+  inn.batStats = {};
+  inn.bowlStats = {};
+  for(const e of inn.timeline){
+    applyStats(inn, e);
+  }
 }
