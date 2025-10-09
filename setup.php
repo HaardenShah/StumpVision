@@ -1,4 +1,5 @@
 <?php /* setup.php — StumpVision guided setup */ ?>
+<script type="module" src="assets/js/setup.js"></script>
 <!doctype html>
 <html lang="en">
 <head>
@@ -111,7 +112,5 @@
 
   <footer class="hint center mt">You can edit player names in-match if needed.</footer>
 </main>
-
-<script type="module" src="assets/js/setup.js"></script>
 </body>
 </html>

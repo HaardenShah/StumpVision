@@ -88,3 +88,45 @@ input[type=text],input[type=number],select{background:#0a0f1c;color:var(--ink);b
 /* Log */
 .log{max-height:360px;overflow:auto;padding-right:4px}
 .hint{color:var(--muted);font-size:13px}
+
+/* ---------- Motion & Animations ---------- */
+@media (prefers-reduced-motion: reduce){
+  * { animation: none !important; transition: none !important; }
+}
+
+/* fade */
+.fade-in { animation: fade-in .24s ease-out both; }
+@keyframes fade-in { from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:translateY(0)} }
+
+/* slide for setup panels */
+.slide-right-in { animation: slide-right-in .26s cubic-bezier(.21,.9,.24,1) both; }
+.slide-left-in  { animation: slide-left-in  .26s cubic-bezier(.21,.9,.24,1) both; }
+.slide-left-out { animation: slide-left-out .22s ease-in both; }
+.slide-right-out{ animation: slide-right-out .22s ease-in both; }
+
+@keyframes slide-right-in { from{opacity:.01; transform:translateX(16px)} to{opacity:1; transform:translateX(0)} }
+@keyframes slide-left-in  { from{opacity:.01; transform:translateX(-16px)} to{opacity:1; transform:translateX(0)} }
+@keyframes slide-left-out { from{opacity:1; transform:translateX(0)} to{opacity:.01; transform:translateX(-16px)} }
+@keyframes slide-right-out{ from{opacity:1; transform:translateX(0)} to{opacity:.01; transform:translateX(16px)} }
+
+/* button press micro-interaction */
+.btn.pressed { animation: press .12s ease-out; }
+@keyframes press { 0%{transform:translateY(0) scale(1)} 50%{transform:translateY(1px) scale(.98)} 100%{transform:translateY(0) scale(1)} }
+
+/* chips and list items pop in */
+.plist li { transition: transform .12s ease, opacity .12s ease; }
+.plist li:active { transform: scale(.98); }
+
+/* setup inputs refinements (if not already present) */
+.setup input[type=text],
+.setup input[type=number],
+.setup select{
+  background:#111827; border:1px solid #22314b; border-radius:12px;
+  padding:12px 14px; color:var(--ink); font-size:15px; width:100%;
+}
+.setup input[type=text]:focus,
+.setup input[type=number]:focus,
+.setup select:focus{
+  border-color:var(--accent); outline:none;
+  box-shadow:0 0 0 2px rgba(34,211,238,.25);
+}

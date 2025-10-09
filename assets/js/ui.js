@@ -1,20 +1,35 @@
-import {qs, qsa} from './util.js';
+import {qs, qsa, haptic} from './util.js';
 import {State, curInn, cloneState} from './state.js';
 import {symbol} from './scoring.js';
 
 let READ_ONLY = false;
 
 export function bindPad(handle){
-  const pad = qsa('#padgrid .btn');
-  pad.forEach(b=>{
-    if(b.dataset.ev === 'noball'){
-      b.addEventListener('click', ()=> openNoBallModal(handle));
-    } else if (b.dataset.ev === 'wide'){
-      b.addEventListener('click', ()=> openWideModal(handle));
+  qsa('#padgrid .btn').forEach(b=>{
+    const ev = b.dataset.ev;
+    if(ev === 'noball'){
+      b.addEventListener('click', ()=>{ haptic('light'); openNoBallModal(handle); buttonPress(b); });
+    } else if (ev === 'wide'){
+      b.addEventListener('click', ()=>{ haptic('light'); openWideModal(handle); buttonPress(b); });
     } else {
-      b.addEventListener('click', ()=> handle(b.dataset.ev));
+      b.addEventListener('click', ()=>{
+        handle(ev);
+        // stronger haptics for big moments
+        if(ev==='4' || ev==='6') haptic('medium');
+        else if(ev==='wicket') haptic('heavy');
+        else haptic('tap');
+        buttonPress(b);
+      });
     }
   });
+}
+
+function buttonPress(el){
+  el.classList.remove('pressed');
+  // reflow to restart animation
+  // eslint-disable-next-line no-unused-expressions
+  el.offsetHeight;
+  el.classList.add('pressed');
 }
 
 export function setReadOnly(on){
