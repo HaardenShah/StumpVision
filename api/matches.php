@@ -1,13 +1,9 @@
 <?php
-// api/matches.php — flat‑file JSON CRUD (flattened layout)
-// Actions: list, load, save, delete
-// Body: JSON { id?, payload? } — payload is full match state
-
+// api/matches.php — JSON CRUD for StumpVision (flattened layout)
 header('Content-Type: application/json');
 header('X-Content-Type-Options: nosniff');
 
-$dataDir = __DIR__ . '/../data'; // flattened: data/ is one level up from api/
-
+$dataDir = __DIR__ . '/../data'; // data/ lives at project root
 if (!is_dir($dataDir)) { @mkdir($dataDir, 0775, true); }
 
 function safe_id($id){ return substr(preg_replace('~[^a-zA-Z0-9_-]~','',$id),0,64); }
@@ -26,8 +22,7 @@ try {
       $items[] = [ 'id'=>$id, 'ts'=>filemtime($f), 'title'=>$title ];
     }
     usort($items, fn($a,$b)=>$b['ts']<=>$a['ts']);
-    echo json_encode(['ok'=>true,'items'=>$items]);
-    exit;
+    echo json_encode(['ok'=>true,'items'=>$items]); exit;
   }
 
   if ($action === 'load') {
@@ -35,8 +30,7 @@ try {
     $f  = path_for($id);
     if (!$id || !is_file($f)) { echo json_encode(['ok'=>false,'err'=>'not_found']); exit; }
     $payload = json_decode(file_get_contents($f), true);
-    echo json_encode(['ok'=>true,'payload'=>$payload]);
-    exit;
+    echo json_encode(['ok'=>true,'payload'=>$payload]); exit;
   }
 
   if ($action === 'save' && $method === 'POST') {
@@ -48,8 +42,7 @@ try {
     $payload = $in['payload'];
     $payload['__saved_at'] = time();
     file_put_contents($f, json_encode($payload, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE));
-    echo json_encode(['ok'=>true,'id'=>$id]);
-    exit;
+    echo json_encode(['ok'=>true,'id'=>$id]); exit;
   }
 
   if ($action === 'delete' && $method === 'POST') {
