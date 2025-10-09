@@ -1,112 +1,295 @@
-import {qs} from './util.js';
-import {State, hydrateFromLocal, autosave, cloneState, curInn, newInnings, DEFAULT_META} from './state.js';
-import {handleEvent, newOver, changeInnings} from './scoring.js';
-import {bindPad, readInputs, hydrateInputs, renderAll, setReadOnly} from './ui.js';
+// assets/js/app.js — StumpVision (clean build)
 
-// read-only mode if ?view=1
+/* ---------------------------------------------
+ * Imports
+ * ------------------------------------------- */
+import { qs } from './util.js';
+import {
+  State,
+  hydrateFromLocal,
+  autosave,
+  cloneState,
+  curInn,
+  newInnings,
+  DEFAULT_META,
+} from './state.js';
+import { handleEvent, newOver, changeInnings } from './scoring.js';
+import {
+  bindPad,
+  readInputs,
+  hydrateInputs,
+  renderAll,
+  setReadOnly,
+} from './ui.js';
+
+/* ---------------------------------------------
+ * URL Params / Viewer mode
+ * ------------------------------------------- */
 const params = new URLSearchParams(location.search);
 const VIEW_ONLY = params.get('view') === '1';
-let POLL_TIMER = null;
+const SHARE_ID = params.get('id') || null;
+
+let pollTimer = null;
 let lastSavedAt = 0;
 
-hydrateFromLocal();
-hydrateInputs();
-renderAll();
+/* ---------------------------------------------
+ * Helpers
+ * ------------------------------------------- */
+const api = (action, p = {}) => {
+  const url =
+    `api/matches.php?action=${action}` +
+    (p.id ? `&id=${encodeURIComponent(p.id)}` : '');
 
-const handle = (ev, opts)=>{ if(VIEW_ONLY) return; readInputs(); handleEvent(ev, State, opts); renderAll(); autosave(); };
-bindPad(handle);
+  const opts = {
+    method: p.body ? 'POST' : 'GET',
+    headers: p.body ? { 'Content-Type': 'application/json' } : undefined,
+    body: p.body ? JSON.stringify(p.body) : undefined,
+  };
 
-if (VIEW_ONLY) {
-  document.body.classList.add('read-only');
-  setReadOnly(true);
-  qs('#saveHint').textContent = 'Live view — updates will appear automatically.';
-  // poll if there's an id
-  const id = params.get('id');
-  if (id) {
-    const poll = async ()=>{
-      try{
-        const j = await (await fetch(`api/matches.php?action=load&id=${encodeURIComponent(id)}`)).json();
-        if(j.ok){
-          if(!lastSavedAt || j.payload.__saved_at !== lastSavedAt){
-            Object.assign(State, j.payload);
-            lastSavedAt = j.payload.__saved_at || Date.now();
-            hydrateInputs(); renderAll();
-          }
-        }
-      }catch(e){}
-    };
-    await poll();
-    POLL_TIMER = setInterval(poll, 3000);
+  return fetch(url, opts);
+};
+
+// If there is a setup payload and no persisted match loaded, seed state
+function maybeSeedFromSetup() {
+  if (State.saveId) return;
+
+  const raw = localStorage.getItem('stumpvision_setup_payload');
+  if (!raw) return;
+
+  try {
+    const s = JSON.parse(raw);
+    State.meta = { ...DEFAULT_META, ...s.meta };
+
+    if (s.teams?.[0]) State.teams[0].name = s.teams[0].name || 'Team A';
+    if (s.teams?.[1]) State.teams[1].name = s.teams[1].name || 'Team B';
+
+    // Prefill batters from first team's players (optional)
+    const rosterA = s.teams?.[0]?.players || [];
+    const inn = curInn();
+    inn.batters[0] = rosterA[0] || '';
+    inn.batters[1] = rosterA[1] || '';
+  } catch (e) {
+    // Silently ignore malformed payloads
   }
 }
 
-// normal controls
-qs('#btnSwap').onclick = ()=>{ if(VIEW_ONLY) return; const inn=curInn(); inn.striker=1-inn.striker; renderAll(); autosave(); };
-qs('#btnNewOver').onclick = ()=>{ if(VIEW_ONLY) return; newOver(State); renderAll(); autosave(); };
-qs('#btnChangeInnings').onclick = ()=>{ if(VIEW_ONLY) return; changeInnings(State); hydrateInputs(); renderAll(); autosave(); };
-qs('#btnReset').onclick = ()=>{
-  if(VIEW_ONLY) return;
-  if(confirm('Reset current match?')){
-    Object.assign(State,{ meta:{...DEFAULT_META}, teams:[{name:'Team A'},{name:'Team B'}], innings:[newInnings(0),newInnings(1)], innNow:0, saveId:null });
-    hydrateInputs(); renderAll(); autosave();
-  }
-};
-qs('#btnNew').onclick = ()=>{
-  if(VIEW_ONLY) return;
-  if(confirm('Start a brand new match? Unsaved progress will be lost.')){
-    Object.assign(State,{ meta:{...DEFAULT_META}, teams:[{name:'Team A'},{name:'Team B'}], innings:[newInnings(0),newInnings(1)], innNow:0, saveId:null });
-    hydrateInputs(); renderAll(); autosave();
-  }
-};
+/* ---------------------------------------------
+ * Boot
+ * ------------------------------------------- */
+hydrateFromLocal();
+maybeSeedFromSetup();
+hydrateInputs();
+renderAll();
 
-// API helpers
-const api = (action, params={})=> fetch(`api/matches.php?action=${action}${params.id?`&id=${encodeURIComponent(params.id)}`:''}`, {
-  method: params.body?'POST':'GET',
-  body: params.body?JSON.stringify(params.body):undefined,
-  headers: params.body?{'Content-Type':'application/json'}:{}
-});
-
-qs('#btnSave').onclick = async ()=>{
-  if(VIEW_ONLY) return;
+// Central handler used by scoring pad (supports opts for nb/wd)
+const handle = (ev, opts) => {
+  if (VIEW_ONLY) return;
   readInputs();
-  const res = await api('save', { body:{ id: State.saveId, payload: cloneState() } });
-  const j = await res.json();
-  qs('#saveHint').textContent = j.ok?`Saved ✓ (id ${j.id})`:'Save failed';
-  if(j.ok) State.saveId = j.id;
+  handleEvent(ev, State, opts || {});
+  renderAll();
+  autosave();
 };
 
-qs('#btnOpen').onclick = async ()=>{
-  if(VIEW_ONLY) return;
-  const list = await (await api('list')).json();
-  if(!list.ok || !list.items.length){ alert('No saved matches found.'); return; }
-  const pick = prompt('Enter ID to load:\n' + list.items.map(x=>`${x.id} — ${new Date(x.ts*1000).toLocaleString()} — ${x.title}`).join('\n'));
-  if(!pick) return;
-  const j = await (await api('load', {id:pick})).json();
-  if(j.ok){ Object.assign(State, j.payload); State.saveId=pick; hydrateInputs(); renderAll(); autosave(); }
-  else alert('Load failed');
-};
+bindPad(handle);
 
-qs('#btnExport').onclick = ()=>{
-  const blob = new Blob([JSON.stringify(cloneState(),null,2)], {type:'application/json'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(State.meta.title||'stumpvision_match')+'.json'; a.click();
-};
+/* ---------------------------------------------
+ * Viewer (read-only) mode
+ * ------------------------------------------- */
+if (VIEW_ONLY) {
+  document.body.classList.add('read-only');
+  setReadOnly(true);
 
-qs('#btnCopyShare').onclick = async ()=>{
-  const base = location.origin + location.pathname;
-  const link = State.saveId ? `${base}?id=${encodeURIComponent(State.saveId)}&view=1` : base;
-  await navigator.clipboard.writeText(link);
-  qs('#saveHint').textContent = State.saveId ? 'Live viewer link copied.' : 'Save first to generate a live link.';
-};
+  const hint = qs('#saveHint');
+  if (hint) hint.textContent = 'Live view — updates appear automatically.';
 
-// Load by id param (share link)
-(async function(){
-  const urlId=new URLSearchParams(location.search).get('id'); if(!urlId) return;
-  const j = await (await api('load',{id:urlId})).json();
-  if(j.ok){ Object.assign(State, j.payload); State.saveId=urlId; hydrateInputs(); renderAll(); }
-})();
+  if (SHARE_ID) {
+    const poll = async () => {
+      try {
+        const res = await api('load', { id: SHARE_ID });
+        const j = await res.json();
+        if (j.ok) {
+          const ts = j.payload.__saved_at || 0;
+          if (ts !== lastSavedAt) {
+            Object.assign(State, j.payload);
+            lastSavedAt = ts;
+            hydrateInputs();
+            renderAll();
+          }
+        }
+      } catch {
+        // ignore transient network errors
+      }
+    };
 
-// Live input binding for autosave (disabled in view mode)
-['title','oversPerSide','ballsPerOver','teamA','teamB','toss','opted','batter1','batter2','bowler'].forEach(id=>{
-  const el = qs('#'+id); if(!el) return;
-  el.addEventListener('input', ()=>{ if(VIEW_ONLY) return; readInputs(); autosave(); });
+    // initial fetch + interval
+    (async () => {
+      await poll();
+      pollTimer = setInterval(poll, 3000);
+    })();
+  }
+}
+
+/* ---------------------------------------------
+ * Top controls
+ * ------------------------------------------- */
+const btnSave = qs('#btnSave');
+if (btnSave) {
+  btnSave.onclick = async () => {
+    if (VIEW_ONLY) return;
+    readInputs();
+    const res = await api('save', { body: { id: State.saveId, payload: cloneState() } });
+    const j = await res.json();
+    const hint = qs('#saveHint');
+
+    if (j.ok) {
+      State.saveId = j.id;
+      if (hint) hint.textContent = `Saved ✓ (id ${j.id})`;
+    } else {
+      if (hint) hint.textContent = 'Save failed';
+    }
+  };
+}
+
+const btnOpen = qs('#btnOpen');
+if (btnOpen) {
+  btnOpen.onclick = async () => {
+    if (VIEW_ONLY) return;
+    const list = await (await api('list')).json();
+    if (!list.ok || !list.items.length) {
+      alert('No saved matches found.');
+      return;
+    }
+    const pick = prompt(
+      'Enter ID to load:\n' +
+        list.items
+          .map(
+            (x) => `${x.id} — ${new Date(x.ts * 1000).toLocaleString()} — ${x.title}`,
+          )
+          .join('\n'),
+    );
+    if (!pick) return;
+
+    const j = await (await api('load', { id: pick })).json();
+    if (j.ok) {
+      Object.assign(State, j.payload);
+      State.saveId = pick;
+      hydrateInputs();
+      renderAll();
+      autosave();
+    } else {
+      alert('Load failed');
+    }
+  };
+}
+
+const btnExport = qs('#btnExport');
+if (btnExport) {
+  btnExport.onclick = () => {
+    const blob = new Blob([JSON.stringify(cloneState(), null, 2)], {
+      type: 'application/json',
+    });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (State.meta.title || 'stumpvision_match') + '.json';
+    a.click();
+  };
+}
+
+// Optional share button (only if present in your header)
+const btnCopyShare = qs('#btnCopyShare');
+if (btnCopyShare) {
+  btnCopyShare.onclick = async () => {
+    const base = location.origin + location.pathname;
+    const link = State.saveId
+      ? `${base}?id=${encodeURIComponent(State.saveId)}&view=1`
+      : base;
+    try {
+      await navigator.clipboard.writeText(link);
+      const hint = qs('#saveHint');
+      if (hint) {
+        hint.textContent = State.saveId
+          ? 'Live viewer link copied.'
+          : 'Save first to generate a live link.';
+      }
+    } catch {
+      alert(link); // fallback: show link to copy manually
+    }
+  };
+}
+
+/* ---------------------------------------------
+ * In-match quick actions
+ * ------------------------------------------- */
+const btnSwap = qs('#btnSwap');
+if (btnSwap) {
+  btnSwap.onclick = () => {
+    if (VIEW_ONLY) return;
+    const inn = curInn();
+    inn.striker = 1 - inn.striker;
+    renderAll();
+    autosave();
+  };
+}
+
+const btnNewOver = qs('#btnNewOver');
+if (btnNewOver) {
+  btnNewOver.onclick = () => {
+    if (VIEW_ONLY) return;
+    newOver(State);
+    renderAll();
+    autosave();
+  };
+}
+
+const btnChangeInnings = qs('#btnChangeInnings');
+if (btnChangeInnings) {
+  btnChangeInnings.onclick = () => {
+    if (VIEW_ONLY) return;
+    changeInnings(State);
+    hydrateInputs();
+    renderAll();
+    autosave();
+  };
+}
+
+/* ---------------------------------------------
+ * Live input autosave (ignored in view-only)
+ * ------------------------------------------- */
+[
+  'title',
+  'oversPerSide',
+  'ballsPerOver',
+  'teamA',
+  'teamB',
+  'toss',
+  'opted',
+  'batter1',
+  'batter2',
+  'bowler',
+].forEach((id) => {
+  const el = qs('#' + id);
+  if (!el) return;
+  el.addEventListener('input', () => {
+    if (VIEW_ONLY) return;
+    readInputs();
+    autosave();
+  });
 });
+
+/* ---------------------------------------------
+ * Load by ID (direct open), when not already in memory
+ * ------------------------------------------- */
+(async function initFromQuery() {
+  if (!SHARE_ID) return;
+  // If we’re the scorer (not view-only) opening a saved match by link
+  if (!VIEW_ONLY) {
+    const j = await (await api('load', { id: SHARE_ID })).json();
+    if (j.ok) {
+      Object.assign(State, j.payload);
+      State.saveId = SHARE_ID;
+      hydrateInputs();
+      renderAll();
+      autosave();
+    }
+  }
+})();
