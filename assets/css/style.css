@@ -130,3 +130,12 @@ input[type=text],input[type=number],select{background:#0a0f1c;color:var(--ink);b
   border-color:var(--accent); outline:none;
   box-shadow:0 0 0 2px rgba(34,211,238,.25);
 }
+
+/* CSS polish for the Share button */
+.chip-btn.accent{
+  background: linear-gradient(90deg, #22d3ee, #ec4899);
+  border-color: rgba(255,255,255,.12);
+  color: white;
+  font-weight: 700;
+}
+.chip-btn.accent:active{ transform: scale(.98); }

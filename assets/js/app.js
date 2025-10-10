@@ -1,8 +1,17 @@
-// assets/js/app.js — StumpVision (clean build)
+/**
+ * assets/js/app.js
+ * ---------------------------------------------------------------------------
+ * Match page controller:
+ *  - Seeds a new match from the setup payload (created by setup.php)
+ *  - Wires all scoring pad events
+ *  - Handles save/open/export + optional live viewer mode
+ *
+ * Notes:
+ *  - VIEW_ONLY mode (?view=1) shows a read-only board and polls for updates.
+ *  - SHARE_ID (?id=...) loads a saved match (as scorer or viewer).
+ * ---------------------------------------------------------------------------
+ */
 
-/* ---------------------------------------------
- * Imports
- * ------------------------------------------- */
 import { qs } from './util.js';
 import {
   State,
@@ -33,7 +42,7 @@ let pollTimer = null;
 let lastSavedAt = 0;
 
 /* ---------------------------------------------
- * Helpers
+ * API helper (flat-file JSON endpoints)
  * ------------------------------------------- */
 const api = (action, p = {}) => {
   const url =
@@ -49,32 +58,53 @@ const api = (action, p = {}) => {
   return fetch(url, opts);
 };
 
-// If there is a setup payload and no persisted match loaded, seed state
+/* ---------------------------------------------
+ * Seed: try to hydrate a new match from setup payload
+ *  - Uses team names, overs/balls, toss+opted to decide batting first
+ *  - Sets opening striker/non-striker and opening bowler
+ * ------------------------------------------- */
 function maybeSeedFromSetup() {
-  if (State.saveId) return;
-
+  if (State.saveId) return; // already a saved match
   const raw = localStorage.getItem('stumpvision_setup_payload');
   if (!raw) return;
 
   try {
     const s = JSON.parse(raw);
+
+    // Meta
     State.meta = { ...DEFAULT_META, ...s.meta };
 
+    // Team names
     if (s.teams?.[0]) State.teams[0].name = s.teams[0].name || 'Team A';
     if (s.teams?.[1]) State.teams[1].name = s.teams[1].name || 'Team B';
 
-    // Prefill batters from first team's players (optional)
-    const rosterA = s.teams?.[0]?.players || [];
+    // Who bats first (from setup)
+    if (typeof s.opening?.battingTeamIndex === 'number') {
+      const idx = s.opening.battingTeamIndex; // 0 or 1
+      State.innings[0].batting = idx;
+      State.innings[0].bowling = 1 - idx;
+    }
+
+    // Opening players
     const inn = curInn();
-    inn.batters[0] = rosterA[0] || '';
-    inn.batters[1] = rosterA[1] || '';
-  } catch (e) {
-    // Silently ignore malformed payloads
+    if (s.opening) {
+      inn.batters[0] = s.opening.striker || '';
+      inn.batters[1] = s.opening.nonStriker || '';
+      inn.striker    = 0; // index in batters[]
+      inn.bowler     = s.opening.bowler || '';
+    } else {
+      // Fallback: first two of Team A roster (if any)
+      const roster = s.teams?.[0]?.players || [];
+      inn.batters[0] = roster[0] || '';
+      inn.batters[1] = roster[1] || '';
+    }
+  } catch {
+    // ignore malformed payloads
   }
 }
 
 /* ---------------------------------------------
- * Boot
+ * Boot sequence
  * ------------------------------------------- */
 hydrateFromLocal();
 maybeSeedFromSetup();
@@ -93,7 +123,7 @@ const handle = (ev, opts) => {
 bindPad(handle);
 
 /* ---------------------------------------------
- * Viewer (read-only) mode
+ * Viewer (read-only) mode: auto-poll for updates
  * ------------------------------------------- */
 if (VIEW_ONLY) {
   document.body.classList.add('read-only');
@@ -195,7 +225,6 @@ if (btnExport) {
   };
 }
 
-// Optional share button (only if present in your header)
 const btnCopyShare = qs('#btnCopyShare');
 if (btnCopyShare) {
   btnCopyShare.onclick = async () => {

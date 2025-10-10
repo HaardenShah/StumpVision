@@ -1,4 +1,4 @@
-<?php /* index.php — StumpVision (clean in-match view) */ ?>
+<?php /* index.php — StumpVision (match view with Share Recap) */ ?>
 <!doctype html>
 <html lang="en">
 <head>
@@ -20,6 +20,8 @@
       <button class="chip-btn" id="btnSave">Save</button>
       <button class="chip-btn" id="btnOpen">Open</button>
       <button class="chip-btn" id="btnExport">Export</button>
+      <!-- New: Share Recap -->
+      <button class="chip-btn accent" id="btnShareRecap" title="Generate animated recap">📸 Share Recap</button>
     </div>
   </div>
 
@@ -33,7 +35,7 @@
 </header>
 
 <main class="content">
-  <!-- Tiny player strip only -->
+  <!-- Player strip -->
   <section class="card tight">
     <div class="row wrap gap">
       <span class="pill" id="inningsBadge">Innings 1 • <span id="battingTeamLbl">Team A</span> batting</span>
@@ -49,7 +51,6 @@
       <button class="btn" id="btnNewOver">New Over</button>
       <button class="btn" id="btnChangeInnings">Change Innings</button>
     </div>
-
     <div class="overwrap mt">
       <div class="label">This over</div>
       <div class="overstrip" id="thisOver"></div>
@@ -98,7 +99,7 @@
     </details>
   </section>
 
-  <footer class="hint center">Tip: Use Setup to prefill teams; bottom dock won’t cover this text anymore.</footer>
+  <footer class="hint center">Tip: Save the match, then “Share Recap” to post a slick summary to Instagram.</footer>
 </main>
 
 <!-- Scoring Dock -->
@@ -114,39 +115,17 @@
     <button class="btn big" data-ev="wide">WD</button>
     <button class="btn big" data-ev="bye">B</button>
     <button class="btn big" data-ev="legbye">LB</button>
-    <button class="btn big" data-ev="wicket">Wkt</button>
+    <button class="btn big danger" data-ev="wicket">Wkt</button>
     <button class="btn big danger" data-ev="undo">Undo</button>
   </div>
 </nav>
-
-<!-- No-Ball & Wide modals (unchanged) -->
-<div id="nbModal" class="modal hidden" role="dialog" aria-modal="true">
-  <div class="modal-card"><div class="modal-title">No Ball — Runs off the bat?</div>
-    <div class="nb-grid">
-      <button class="btn nbpick" data-val="0">0</button><button class="btn nbpick" data-val="1">1</button>
-      <button class="btn nbpick" data-val="2">2</button><button class="btn nbpick" data-val="3">3</button>
-      <button class="btn nbpick" data-val="4">4</button><button class="btn nbpick" data-val="6">6</button>
-    </div>
-    <div class="row modal-actions"><button class="btn danger" id="nbCancel">Cancel</button></div>
-    <p class="hint">Total = 1 (NB) + bat runs. Next legal ball is a FREE HIT.</p>
-  </div>
-</div>
-<div id="wdModal" class="modal hidden" role="dialog" aria-modal="true">
-  <div class="modal-card"><div class="modal-title">Wide — How many runs were run?</div>
-    <div class="nb-grid">
-      <button class="btn wdpick" data-val="0">0</button><button class="btn wdpick" data-val="1">1</button>
-      <button class="btn wdpick" data-val="2">2</button><button class="btn wdpick" data-val="3">3</button>
-      <button class="btn wdpick" data-val="4">4</button><button class="btn wdpick" data-val="5">5</button>
-    </div>
-    <div class="row modal-actions"><button class="btn danger" id="wdCancel">Cancel</button></div>
-    <p class="hint">Wide adds 1 + runs. Ball does not count.</p>
-  </div>
-</div>
 
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', ()=> navigator.serviceWorker.register('service-worker.js'));
   }
+  // expose State for ui.js share helper (if modules sandboxed differently)
+  window.State = window.State || {};
 </script>
 <script type="module" src="assets/js/app.js"></script>
 </body>
