@@ -1,207 +1,212 @@
-import {curInn, ensureBatter, ensureBowler} from './state.js';
+/**
+ * assets/js/scoring.js
+ * Pure scoring domain logic for StumpVision.
+ *
+ * Responsibilities:
+ *  - Maintain innings state (runs, wickets, balls, extras)
+ *  - Apply events: dot, 1/2/3/4/6, bye, legbye, wide, noball, wicket, undo
+ *  - Detect legal deliveries; auto-end over after ballsPerOver legal balls
+ *  - Start new overs; change innings
+ */
 
-export const symbol = (e)=>{
-  if(e.extra==='wd') return e.wideRuns ? `wd+${e.wideRuns-1}` : 'wd';
-  if(e.extra==='nb') return e.batRuns ? `nb+${e.batRuns}` : 'nb';
-  if(e.extra==='b')  return 'b';
-  if(e.extra==='lb') return 'lb';
-  if(e.wicket) return 'W';
-  return String(e.runs);
-};
+import { now } from './util.js';
+import { State } from './state.js';
 
-// update batter and bowler stats for this event
-function applyStats(inn, e){
-  const strikerName = e.batters?.[e.striker] || '';
-  const bowlerName  = e.bowler || '';
-  ensureBatter(inn, strikerName);
-  ensureBowler(inn, bowlerName);
+/* ------------------------- Utilities ------------------------- */
+const legalHitEvents = new Set(['dot', '1', '2', '3', '4', '6', 'bye', 'legbye', 'wicket']);
 
-  const bat = inn.batStats[strikerName];
-  const bowl= inn.bowlStats[bowlerName];
-
-  // BOWLER: runs conceded (wd & nb count to bowler; b & lb don't)
-  let conceded = 0;
-  if(e.extra==='wd') conceded += e.runs;
-  else if(e.extra==='nb') conceded += e.runs;
-  else if(e.extra==='b' || e.extra==='lb') conceded += 0;
-  else conceded += e.runs;
-
-  // BATTER: runs off the bat and balls faced rules
-  let batRuns = 0, ballFaced = 0;
-  if(e.extra==='nb'){ batRuns = e.batRuns||0; ballFaced = 0; }
-  else if(e.extra==='wd'){ batRuns = 0; ballFaced = 0; }
-  else if(e.extra==='b' || e.extra==='lb'){ batRuns = 0; ballFaced = 1; }
-  else { batRuns = e.runs; ballFaced = 1; }
-
-  // apply
-  if(bat){
-    bat.R += batRuns;
-    bat.B += ballFaced;
-    if(batRuns===4) bat[4] += 1;
-    if(batRuns===6) bat[6] += 1;
-  }
-  if(bowl){
-    if(e.legal) bowl.balls += 1;
-    bowl.R += conceded;
-    if(e.wicket) bowl.W += 1;
-  }
+/** Current innings convenience */
+export function curInn() {
+  return State.innings[State.meta.currentInnings];
 }
 
-/**
- * handleEvent(ev, State, opts)
- * - ev: 'dot','1','2','3','4','6','wicket','wide','noball','bye','legbye','undo'
- * - opts: { batRuns?: number } for 'noball', { runOns?: number } for 'wide'
- */
-export function handleEvent(ev, State, opts={}){
-  if(ev==='undo') return undo(State);
+/** Is this event a legal delivery (increments ball count)? */
+export function isLegal(ev, opts = {}) {
+  // wides & no-balls are NOT legal deliveries
+  if (ev === 'wide' || ev === 'noball') return false;
+  // everything else we model as a legal ball
+  return legalHitEvents.has(ev);
+}
 
-  const inn = curInn();
-  const bpo = State.meta.ballsPerOver;
-  const entry = {
-    t:Date.now(), ev, runs:0, extra:null, legal:true,
-    striker:inn.striker, bowler:inn.bowler, batters:[...inn.batters]
-  };
+/* ------------------------- Core Apply ------------------------- */
+export function handleEvent(ev, state = State, opts = {}) {
+  const inn = state.innings[state.meta.currentInnings];
+  const bpo = state.meta.ballsPerOver || 6;
 
-  switch(ev){
-    case 'dot': entry.runs=0; break;
-    case '1': entry.runs=1; break;
-    case '2': entry.runs=2; break;
-    case '3': entry.runs=3; break;
-    case '4': entry.runs=4; break;
-    case '6': entry.runs=6; break;
-    case 'wicket': entry.runs=0; entry.wicket=true; break;
+  // ensure logs
+  inn.log = inn.log || [];
+  inn.extras = inn.extras || { nb: 0, wd: 0, b: 0, lb: 0 };
+
+  let runsAdded = 0;
+  let legal = isLegal(ev, opts);
+
+  switch (ev) {
+    case 'dot':
+      // nothing but legal ball
+      break;
+
+    case '1': case '2': case '3': case '4': case '6': {
+      const n = Number(ev);
+      runsAdded += n;
+      // batting stats
+      addBatStats(inn, currentBatterName(inn), n, 1, n === 4 ? 1 : 0, n === 6 ? 1 : 0);
+      // strike rotation for odd runs
+      if (n % 2 === 1) inn.striker = 1 - (inn.striker || 0);
+      break;
+    }
+
+    case 'bye': {
+      const r = Number(opts.runs ?? 1);
+      inn.extras.b += r;
+      runsAdded += r;
+      // bye does NOT add to batter runs, but is a legal delivery
+      break;
+    }
+
+    case 'legbye': {
+      const r = Number(opts.runs ?? 1);
+      inn.extras.lb += r;
+      runsAdded += r;
+      break;
+    }
 
     case 'wide': {
-      const runOns = Number(opts.runOns ?? 0); // 0..5
-      entry.extra='wd'; entry.legal=false;
-      entry.wideRuns = 1 + runOns;
-      entry.runs = entry.wideRuns;
-      inn.extras.wd += entry.wideRuns;
-      // strike rotates if they actually ran an odd number (ignoring the 1 penalty)
-      if(runOns % 2 === 1) inn.striker = 1 - inn.striker;
+      // wides add 1 + additional wides if chosen; NOT a legal ball
+      const r = Number(opts.runs ?? 1); // 1,2,3... wides
+      inn.extras.wd += r;
+      runsAdded += r;
+      legal = false;
       break;
     }
 
     case 'noball': {
-      const batRuns = Number(opts.batRuns ?? 0); // 0/1/2/3/4/6
-      entry.extra='nb'; entry.legal=false; entry.batRuns = batRuns;
-      entry.runs = 1 + batRuns;
-      inn.extras.nb += 1;          // only penalty 1 to extras
-      if(batRuns % 2 === 1) inn.striker = 1 - inn.striker; // rotate on odd bat runs
-      inn.freeHit = true;          // next legal ball
+      // no-ball adds 1 EXTRA + any bat runs (which go to batter), NOT a legal ball
+      const batRuns = Number(opts.batRuns ?? 0); // 0,1,2,3,4,6
+      // extras: +1 for NB (penalty)
+      inn.extras.nb += 1;
+      runsAdded += 1 + batRuns;
+
+      if (batRuns > 0) {
+        addBatStats(inn, currentBatterName(inn), batRuns, 0, batRuns === 4 ? 1 : 0, batRuns === 6 ? 1 : 0);
+        // strike rotates on odd batRuns (even though not legal ball)
+        if (batRuns % 2 === 1) inn.striker = 1 - (inn.striker || 0);
+      }
+      legal = false; // no-ball does not increment balls
+      // optionally: mark next ball as free hit in inn flags
+      inn.freeHit = true;
       break;
     }
 
-    case 'bye':
-      entry.extra='b'; entry.legal=true; entry.runs=1; inn.extras.b += 1; break;
-
-    case 'legbye':
-      entry.extra='lb'; entry.legal=true; entry.runs=1; inn.extras.lb += 1; break;
-  }
-
-  // Apply free hit: on next LEGAL ball, wicket (other than run-out) doesn't count
-  if(inn.freeHit && entry.legal){
-    if(entry.wicket){
-      entry.wicket=false;
-      entry.freeHitWicketIgnored = true;
+    case 'wicket': {
+      // counts as legal delivery (unless you want to model NB Wkt, skip for now)
+      inn.wickets = (inn.wickets || 0) + 1;
+      addBatStats(inn, currentBatterName(inn), 0, 1, 0, 0, true);
+      break;
     }
-    inn.freeHit = false;
-  }
 
-  // push + total
-  inn.timeline.push(entry);
-  inn.runs += entry.runs;
-  if(entry.wicket) inn.wickets++;
-
-  // counts and over strip
-  if(entry.legal){
-    inn.balls++; inn.legalBalls++;
-    inn.overBalls.push(symbol(entry));
-    if(entry.runs %2 === 1 && !entry.extra) inn.striker = 1-inn.striker;
-    if(inn.legalBalls % bpo === 0){ endOver(State); }
-  } else {
-    inn.overBalls.push(symbol(entry));
-  }
-
-  // stats
-  applyStats(inn, entry);
-}
-
-export function endOver(State){
-  const inn=curInn();
-  if(inn.overBalls.length){
-    inn.overs++; inn.overBalls=[]; inn.legalBalls=0; inn.striker = 1-inn.striker;
-  }
-}
-
-export function newOver(State){ endOver(State); }
-
-export function changeInnings(State){
-  const old = curInn();
-  if(State.innNow===0){
-    const target = old.runs + 1; State.innings[1].target = target; State.innNow=1;
-    const firstBat = old.batting; State.innings[1].batting=1-firstBat; State.innings[1].bowling=firstBat;
-  } else {
-    State.innNow=0;
-  }
-}
-
-export function undo(State){
-  const inn=curInn();
-  const last = inn.timeline.pop(); if(!last) return;
-
-  // reverse totals
-  inn.runs -= last.runs; if(last.wicket) inn.wickets=Math.max(0,inn.wickets-1);
-
-  // reverse extras
-  if(last.extra==='wd') inn.extras.wd = Math.max(0, inn.extras.wd - (last.wideRuns||1));
-  if(last.extra==='nb') inn.extras.nb = Math.max(0, inn.extras.nb - 1);
-  if(last.extra==='b')  inn.extras.b  = Math.max(0, inn.extras.b - 1);
-  if(last.extra==='lb') inn.extras.lb = Math.max(0, inn.extras.lb - 1);
-
-  // reverse counts and strip
-  if(last.legal){
-    if(inn.overBalls.length) inn.overBalls.pop();
-    recalcCounts(State, inn);
-  } else {
-    if(inn.overBalls.length) inn.overBalls.pop();
-  }
-
-  // reverse stats (recompute for simplicity)
-  recomputeAllStats(inn);
-}
-
-export function rebuildOverStrip(State){
-  const inn=curInn(); inn.overBalls=[]; inn.legalBalls=0;
-  const bpo=State.meta.ballsPerOver;
-  for(let i=Math.max(0, inn.timeline.length-bpo); i<inn.timeline.length; i++){
-    const e=inn.timeline[i]; if(!e) break; inn.overBalls.push(symbol(e)); if(e.legal) inn.legalBalls++; }
-}
-
-export function recalcCounts(State, inn){
-  inn.balls=0; inn.overs=0; inn.legalBalls=0; inn.overBalls=[];
-  let lb=0; const bpo=State.meta.ballsPerOver;
-  let freeHitPending=false;
-  for(const e of inn.timeline){
-    if(e.extra==='nb') freeHitPending = true;
-    if(e.legal && freeHitPending){ freeHitPending=false; }
-    if(e.legal){
-      lb++;
-      if(lb===bpo){ inn.overs++; lb=0; inn.overBalls=[]; }
-      else { inn.overBalls.push(symbol(e)); }
-    } else {
-      inn.overBalls.push(symbol(e));
+    case 'undo': {
+      undoLast(inn);
+      recompute(inn, state.meta.ballsPerOver || 6);
+      return;
     }
-    inn.balls += e.legal?1:0;
+
+    default:
+      console.warn('Unknown event', ev);
+      return;
   }
-  inn.legalBalls = lb;
-  inn.freeHit = freeHitPending;
+
+  // apply runs
+  inn.runs = (inn.runs || 0) + runsAdded;
+
+  // balls/over handling
+  if (legal) {
+    inn.balls = (inn.balls || 0) + 1;
+    inn.freeHit = false; // consumed if was set
+  }
+
+  // push to log
+  inn.log.push({
+    t: now(),
+    ev,
+    opts,
+    runs: runsAdded,
+    legal: legal ? 1 : 0,
+    strikerIdx: inn.striker || 0,
+  });
+
+  // auto end over after bpo legal deliveries
+  if (((inn.balls || 0) % bpo) === 0 && (inn.balls || 0) > 0 && legal) {
+    newOver(state, { auto: true });
+  }
 }
 
-function recomputeAllStats(inn){
-  inn.batStats = {};
-  inn.bowlStats = {};
-  for(const e of inn.timeline){
-    applyStats(inn, e);
-  }
+/* ------------------------- Stats helpers ------------------------- */
+function currentBatterName(inn) {
+  const s = inn.striker || 0;
+  const name = (inn.batters && inn.batters[s]) || '';
+  return name || `Batter${s + 1}`;
 }
+
+function addBatStats(inn, name, runs, balls, fours = 0, sixes = 0, out = false) {
+  inn.batStats = inn.batStats || [];
+  let row = inn.batStats.find(r => r.name === name);
+  if (!row) {
+    row = { name, runs: 0, balls: 0, fours: 0, sixes: 0, out: false };
+    inn.batStats.push(row);
+  }
+  row.runs += runs;
+  row.balls += balls;
+  row.fours += fours;
+  row.sixes += sixes;
+  if (out) row.out = true;
+}
+
+function addBowlStats(inn, name, runs, balls, wickets = 0) {
+  inn.bowlStats = inn.bowlStats || [];
+  let row = inn.bowlStats.find(r => r.name === name);
+  if (!row) {
+    row = { name, runs: 0, balls: 0, wickets: 0 };
+    inn.bowlStats.push(row);
+  }
+  row.runs += runs;
+  row.balls += balls;
+  row.wickets += wickets;
+}
+
+/** Recalculate derived counters from log (if you ever need a full recompute) */
+export function recompute(inn, bpo = 6) {
+  inn.runs = 0; inn.wickets = 0; inn.balls = 0;
+  inn.extras = { nb: 0, wd: 0, b: 0, lb: 0 };
+  inn.batStats = []; inn.bowlStats = [];
+  (inn.log || []).forEach(entry => {
+    const { ev, opts, runs, legal } = entry;
+    // rough recompute — enough for scoreboard
+    inn.runs += runs || 0;
+    if (ev === 'wicket') inn.wickets += 1;
+    if (legal) inn.balls += 1;
+    if (ev === 'wide') inn.extras.wd += Number(opts?.runs ?? 1);
+    if (ev === 'noball') inn.extras.nb += 1;
+    if (ev === 'bye') inn.extras.b += Number(opts?.runs ?? 1);
+    if (ev === 'legbye') inn.extras.lb += Number(opts?.runs ?? 1);
+  });
+}
+
+/* ------------------------- Over & Innings ------------------------- */
+export function newOver(state = State, meta = {}) {
+  const inn = state.innings[state.meta.currentInnings];
+  inn.overs = inn.overs || [];
+  inn.overs.push(inn.log.length);
+  inn.thisOver = []; // let UI rebuild
+  inn.pendingNewOver = true; // UI can use to prompt bowler
+  // (No automatic bowler change here; UI will open picker)
+}
+
+export function changeInnings(state = State) {
+  state.meta.currentInnings = (state.meta.currentInnings || 0) === 0 ? 1 : 0;
+  const inn = curInn();
+  inn.thisOver = [];
+  inn.pendingNewOver = true;
+}
+
+/* ------------------------- Export newOver alias for app.js ------------- */
+export { newOver };

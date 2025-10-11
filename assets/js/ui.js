@@ -1,20 +1,71 @@
 /**
  * assets/js/ui.js
- * Adds:
- *  - “New Batter” modal automatically after a wicket
- *  - “Pick Bowler” modal when you tap “New Over”
- *  - Share Recap integration (unchanged from previous answer)
+ * UI glue:
+ *  - Populates ball-by-ball dropdown
+ *  - Binds pad buttons & dropdown submit
+ *  - Shows nice player picker modal for new batter/bowler
+ *  - Hooks into auto-new-over (from scoring.js)
  */
 
 import { qs, qsa, haptic } from './util.js';
 import { State, curInn } from './state.js';
+import { handleEvent, newOver as domainNewOver } from './scoring.js';
 
 /* ---------------- Read-only toggle ---------------- */
 let READ_ONLY = false;
 export function setReadOnly(v){ READ_ONLY = !!v; document.body.classList.toggle('read-only', READ_ONLY); }
 
+/* ---------------- Delivery dropdown ---------------- */
+export function initDeliveryPicker(handle) {
+  const sel = qs('#deliveryPicker');
+  const btn = qs('#applyDelivery');
+  if (!sel || !btn) return;
+
+  // Populate (0-6, wides, nb, bye, lb, wicket)
+  sel.innerHTML = `
+    <optgroup label="Runs">
+      <option value="dot">Dot (0)</option>
+      <option value="1">1 run</option>
+      <option value="2">2 runs</option>
+      <option value="3">3 runs</option>
+      <option value="4">Boundary 4</option>
+      <option value="6">Sixer (6)</option>
+    </optgroup>
+    <optgroup label="Extras">
+      <option value="wide">Wide (+1)</option>
+      <option value="noball">No-ball (+1 + bat runs)</option>
+      <option value="bye">Bye</option>
+      <option value="legbye">Leg Bye</option>
+    </optgroup>
+    <optgroup label="Special">
+      <option value="wicket">Wicket</option>
+    </optgroup>
+  `;
+
+  btn.onclick = async () => {
+    const v = sel.value;
+    if (!v) return;
+
+    if (v === 'wide') {
+      openWideModal((ev, opts) => handle(ev, opts));
+      return;
+    }
+    if (v === 'noball') {
+      openNoBallModal((ev, opts) => handle(ev, opts));
+      return;
+    }
+    if (v === 'bye' || v === 'legbye') {
+      const n = Number(prompt(`${v === 'bye' ? 'Byes' : 'Leg byes'} runs?`, '1') || '1');
+      handle(v, { runs: n });
+      return;
+    }
+    handle(v);
+  };
+}
+
 /* ---------------- Scoring pad binding ------------- */
 export function bindPad(handle){
+  // Buttons
   qsa('#padgrid .btn').forEach(b=>{
     const ev = b.dataset.ev;
     const pressFX = ()=>{ b.classList.remove('pressed'); void b.offsetHeight; b.classList.add('pressed'); };
@@ -25,18 +76,18 @@ export function bindPad(handle){
       b.addEventListener('click', ()=>{ haptic('light'); openWideModal(handle); pressFX(); });
     } else {
       b.addEventListener('click', ()=>{
-        // call domain logic
         handle(ev);
-
-        // UI side-effects
+        // UI haptics
         if(ev==='4' || ev==='6') haptic('medium');
-        else if(ev==='wicket'){ haptic('heavy'); openNewBatterModal(); }
+        else if(ev==='wicket'){ haptic('heavy'); openNewBatterPicker(); }
         else haptic('tap');
-
         pressFX();
       });
     }
   });
+
+  // delivery dropdown
+  initDeliveryPicker(handle);
 
   // Share recap button
   qs('#btnShareRecap')?.addEventListener('click', async ()=>{ haptic('light'); await shareRecap(); });
@@ -61,6 +112,13 @@ export function renderAll(){
   const inn = curInn();
   const total = (inn.runs ?? 0) + '/' + (inn.wickets ?? 0);
   if(qs('#scoreNow')) qs('#scoreNow').textContent = total;
+
+  // Auto new over prompt?
+  if (inn.pendingNewOver) {
+    inn.pendingNewOver = false;
+    // Prompt for next bowler with a nice picker
+    openNewBowlerPicker();
+  }
 }
 
 /* ---------------- Modals: NB / WD ----------------- */
@@ -81,42 +139,102 @@ export function openWideModal(handle){
   qs('#wdCancel').onclick = ()=> modal.classList.add('hidden');
 }
 
-/* ---------------- New Batter / Bowler ------------- */
-/** Prompt after a wicket. Lets you type or pick quickly. */
-export function openNewBatterModal(){
-  // Build lightweight prompt using native prompt for speed (or replace with custom modal)
+/* ---------------- Pretty Player Picker ------------- */
+function getSetup() {
+  try { return JSON.parse(localStorage.getItem('stumpvision_setup_payload') || 'null'); }
+  catch { return null; }
+}
+function rosterFor(side /* 'bat' | 'bowl' */) {
+  const setup = getSetup();
   const inn = curInn();
-  const currentBatters = inn.batters?.filter(Boolean) || [];
-  const taken = new Set(currentBatters);
-  // Try to aggregate a roster from team names (payload from setup)
-  const setup = JSON.parse(localStorage.getItem('stumpvision_setup_payload') || 'null');
-  const batIdx = inn.batting ?? (setup?.opening?.battingTeamIndex ?? 0);
-  const roster = (batIdx===0 ? setup?.teams?.[0]?.players : setup?.teams?.[1]?.players) || [];
-
-  // Suggest first unused name
-  const suggestion = roster.find(n=>!taken.has(n)) || '';
-
-  const name = prompt('New batter in:', suggestion);
-  if(!name) return;
-  // Put new batter in the dismissed striker’s slot
-  const slot = inn.striker ?? 0;
-  inn.batters[slot] = name.trim();
-  hydrateInputs(); renderAll();
+  let batIdx = inn.batting ?? (setup?.opening?.battingTeamIndex ?? 0);
+  let bowlIdx = 1 - batIdx;
+  const idx = side === 'bat' ? batIdx : bowlIdx;
+  return (setup?.teams?.[idx]?.players || []).slice();
 }
 
-/** Call this when you tap “New Over” (we hook this in index/app). */
-export function openNewBowlerModal(){
-  const inn = curInn();
-  const setup = JSON.parse(localStorage.getItem('stumpvision_setup_payload') || 'null');
-  const bowlIdx = (inn.bowling != null) ? inn.bowling : ( (setup?.opening?.battingTeamIndex ?? 0) === 0 ? 1 : 0 );
-  const roster = (bowlIdx===0 ? setup?.teams?.[0]?.players : setup?.teams?.[1]?.players) || [];
-  const name = prompt('New over — bowler:', roster[0] || (inn.bowler || ''));
-  if(!name) return;
-  inn.bowler = name.trim();
-  if(qs('#bowler')) qs('#bowler').value = inn.bowler;
+/** Generic picker that populates chips with search; calls onPick(name) */
+function openPlayerPicker({ title = 'Select Player', side = 'bat', onPick }) {
+  const modal = qs('#pickModal'); if (!modal) return;
+  const titleEl = qs('#pickTitle', modal);
+  const list = qs('#pickList', modal);
+  const search = qs('#pickSearch', modal);
+
+  titleEl.textContent = title;
+  const names = rosterFor(side);
+
+  // Build chips
+  list.innerHTML = names.length
+    ? names.map(n => `<button class="chip player" data-name="${n}">${initials(n)}<span>${n}</span></button>`).join('')
+    : `<div class="hint center">No roster yet. Type a name below.</div>`;
+
+  // Wire chips
+  qsa('.chip.player', modal).forEach(ch => {
+    ch.onclick = () => {
+      const name = ch.dataset.name || '';
+      if (name) {
+        modal.classList.add('hidden');
+        onPick(name);
+      }
+    };
+  });
+
+  // Enter input path
+  search.value = '';
+  search.onkeydown = (e) => {
+    if (e.key === 'Enter') {
+      const name = search.value.trim();
+      if (name) {
+        modal.classList.add('hidden');
+        onPick(name);
+      }
+    }
+  };
+
+  // Close button
+  qs('#pickCancel', modal).onclick = () => modal.classList.add('hidden');
+
+  modal.classList.remove('hidden');
+  search.focus();
 }
 
-/* ---------------- Share Recap MP4 ----------------- */
+function initials(n) {
+  const parts = (n || '').split(/\s+/).filter(Boolean);
+  const a = parts[0]?.[0] || '';
+  const b = parts[1]?.[0] || '';
+  return (a + b).toUpperCase();
+}
+
+/** After wicket */
+export function openNewBatterPicker(){
+  const inn = curInn();
+  const slot = inn.striker ?? 0; // dismissed striker; replace in that slot
+  openPlayerPicker({
+    title: 'New Batter In',
+    side: 'bat',
+    onPick: (name) => {
+      inn.batters[slot] = name;
+      hydrateInputs(); renderAll();
+      haptic('soft');
+    }
+  });
+}
+
+/** On new over */
+export function openNewBowlerPicker(){
+  const inn = curInn();
+  openPlayerPicker({
+    title: 'New Over — Pick Bowler',
+    side: 'bowl',
+    onPick: (name) => {
+      inn.bowler = name;
+      if(qs('#bowler')) qs('#bowler').value = name;
+      haptic('soft');
+    }
+  });
+}
+
+/* ---------------- Share Recap MP4 (unchanged) ------ */
 export async function shareRecap(){
   const id = (window.State && window.State.saveId) || (State && State.saveId);
   if(!id){ alert('Save the match first to generate a recap.'); return; }
