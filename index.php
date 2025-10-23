@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="Fast, clean cricket scoring for pickup matches">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="StumpVision">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
   <title>StumpVision - Live Match</title>
   <style>
     :root {
@@ -604,6 +610,13 @@
         <p><strong>Team B:</strong> <span id="settingsTeamB">Team B</span></p>
       </div>
 
+      <div class="settings-item">
+        <h3>Match Actions</h3>
+        <button class="btn-primary" onclick="saveMatch()">Save Match</button>
+        <button class="btn-primary" onclick="shareRecap()">Share Score Card</button>
+        <p class="hint" id="saveStatus" style="margin-top: 8px;"></p>
+      </div>
+
       <button class="btn-primary" onclick="newInnings()">Start New Innings</button>
       <button class="btn-primary" onclick="endMatch()">End Match</button>
       <button class="btn-primary" style="background: var(--danger);" onclick="resetMatch()">Reset Match</button>
@@ -747,7 +760,10 @@
       bowlers: {},
       extras: { nb: 0, wd: 0, b: 0, lb: 0 },
       ballHistory: [],
-      firstInningsScore: null
+      firstInningsScore: null,
+      saveId: null,
+      meta: { title: '', oversPerSide: 20, ballsPerOver: 6 },
+      teams: [{ name: 'Team A', players: [] }, { name: 'Team B', players: [] }]
     };
 
     // Initialize
@@ -1333,6 +1349,7 @@
         .map(p => `<option value="${p}">${p}</option>`)
         .join('');
       
+      document.getElementById('batsmanModalTitle').textContent = 'Select Opening Batsman 1';
       document.getElementById('batsmanModal').classList.add('active');
       
       // Override the confirm button behavior for second innings
@@ -1354,12 +1371,14 @@
           .map(p => `<option value="${p}">${p}</option>`)
           .join('');
         
+        document.getElementById('batsmanModalTitle').textContent = 'Select Opening Batsman 2';
         document.getElementById('batsmanModal').setAttribute('data-mode', 'second-innings-bat2');
         
       } else if (mode === 'second-innings-bat2') {
         // Second opening batsman selected
         matchState.nonStriker = select.value;
         closeModal('batsmanModal');
+        document.getElementById('batsmanModalTitle').textContent = 'New Batsman';
         
         // Now ask for opening bowler
         const bowlerSelect = document.getElementById('newBowlerSelect');
@@ -1376,6 +1395,7 @@
         // Regular new batsman (after wicket)
         matchState.striker = select.value;
         closeModal('batsmanModal');
+        document.getElementById('batsmanModalTitle').textContent = 'New Batsman';
         updateDisplay();
       }
     }
@@ -1409,8 +1429,184 @@
       }
     }
 
+    // Save/Load/Share Functions
+    async function saveMatch() {
+      const statusEl = document.getElementById('saveStatus');
+      statusEl.textContent = 'Saving...';
+      
+      try {
+        // Build payload compatible with backend
+        const payload = {
+          meta: {
+            title: `${matchState.setup.teamA.name} vs ${matchState.setup.teamB.name}`,
+            oversPerSide: matchState.setup.oversPerInnings,
+            ballsPerOver: 6
+          },
+          teams: [
+            { name: matchState.setup.teamA.name, players: matchState.setup.teamA.players },
+            { name: matchState.setup.teamB.name, players: matchState.setup.teamB.players }
+          ],
+          innings: buildInningsData()
+        };
+        
+        const response = await fetch('api/matches.php?action=save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: matchState.saveId,
+            payload: payload
+          })
+        });
+        
+        const result = await response.json();
+        if (result.ok) {
+          matchState.saveId = result.id;
+          statusEl.textContent = `Saved! ID: ${result.id}`;
+          statusEl.style.color = 'var(--success)';
+        } else {
+          statusEl.textContent = 'Save failed';
+          statusEl.style.color = 'var(--danger)';
+        }
+      } catch (err) {
+        statusEl.textContent = 'Save error: ' + err.message;
+        statusEl.style.color = 'var(--danger)';
+      }
+    }
+    
+    function buildInningsData() {
+      const innings = [];
+      
+      // First innings
+      const inn1BattingTeam = matchState.battingTeam === 'teamA' ? 0 : 1;
+      innings.push({
+        batting: inn1BattingTeam,
+        bowling: 1 - inn1BattingTeam,
+        runs: matchState.firstInningsScore || 0,
+        wickets: matchState.setup.wicketsLimit,
+        balls: matchState.setup.oversPerInnings * 6,
+        extras: matchState.extras,
+        batStats: buildBatStats(matchState.battingTeam),
+        bowlStats: buildBowlStats(matchState.bowlingTeam)
+      });
+      
+      // Second innings (if started)
+      if (matchState.innings === 2) {
+        const inn2BattingTeam = 1 - inn1BattingTeam;
+        innings.push({
+          batting: inn2BattingTeam,
+          bowling: inn1BattingTeam,
+          runs: matchState.score.runs,
+          wickets: matchState.score.wickets,
+          balls: matchState.overs * 6 + matchState.balls,
+          extras: matchState.extras,
+          batStats: buildBatStats(matchState.battingTeam),
+          bowlStats: buildBowlStats(matchState.bowlingTeam)
+        });
+      }
+      
+      return innings;
+    }
+    
+    function buildBatStats(team) {
+      const players = matchState.setup[team].players;
+      return players.map(p => {
+        const stats = matchState.batsmen[p] || { runs: 0, balls: 0, fours: 0, sixes: 0, out: false };
+        return {
+          name: p,
+          runs: stats.runs,
+          balls: stats.balls,
+          fours: stats.fours,
+          sixes: stats.sixes,
+          out: stats.out
+        };
+      }).filter(s => s.balls > 0 || s.out);
+    }
+    
+    function buildBowlStats(team) {
+      const players = matchState.setup[team].players;
+      return players.map(p => {
+        const stats = matchState.bowlers[p] || { balls: 0, runs: 0, wickets: 0 };
+        return {
+          name: p,
+          balls: stats.balls,
+          runs: stats.runs,
+          wickets: stats.wickets
+        };
+      }).filter(s => s.balls > 0);
+    }
+    
+    async function shareRecap() {
+      if (!matchState.saveId) {
+        alert('Please save the match first before sharing!');
+        return;
+      }
+      
+      const statusEl = document.getElementById('saveStatus');
+      statusEl.textContent = 'Generating share card...';
+      
+      try {
+        const response = await fetch(`api/renderCard.php?id=${encodeURIComponent(matchState.saveId)}`);
+        const result = await response.json();
+        
+        if (!result.ok) {
+          alert('Could not generate share card: ' + (result.error || 'Unknown error'));
+          statusEl.textContent = 'Share failed';
+          return;
+        }
+        
+        // Try to share the MP4 if available, otherwise PNG
+        const shareUrl = result.mp4 || result.fallback_png;
+        if (!shareUrl) {
+          alert('No share asset was generated');
+          return;
+        }
+        
+        const blob = await (await fetch(shareUrl)).blob();
+        const file = new File(
+          [blob],
+          result.mp4 ? 'StumpVision.mp4' : 'StumpVision.png',
+          { type: result.mp4 ? 'video/mp4' : 'image/png' }
+        );
+        
+        // Try native share
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              title: `${matchState.setup.teamA.name} vs ${matchState.setup.teamB.name}`,
+              text: 'Match scorecard from StumpVision',
+              files: [file]
+            });
+            statusEl.textContent = 'Shared!';
+            return;
+          } catch (shareErr) {
+            // User cancelled or share failed, fallback to download
+          }
+        }
+        
+        // Fallback: Download
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = file.name;
+        a.click();
+        statusEl.textContent = 'Downloaded share card';
+        
+      } catch (err) {
+        alert('Share error: ' + err.message);
+        statusEl.textContent = 'Share failed';
+      }
+    }
+
     // Initialize on load
     init();
+    
+    // Register service worker for PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(reg => console.log('SW registered'))
+          .catch(err => console.log('SW registration failed'));
+      });
+    }
   </script>
 </body>
 </html>">

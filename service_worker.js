@@ -1,45 +1,71 @@
-// service-worker.js — basic offline cache (stale-while-revalidate)
-const VERSION = 'stumpvision-v1';
-const CORE = [
-  'index.php',
-  'assets/css/style.css',
-  'assets/js/app.js',
-  'assets/js/state.js',
-  'assets/js/scoring.js',
-  'assets/js/ui.js',
-  'assets/js/util.js',
-  'manifest.webmanifest'
+// StumpVision Service Worker - Offline Support
+const VERSION = 'stumpvision-v2.0';
+const CORE_CACHE = [
+  '/',
+  '/index.php',
+  '/setup.php',
+  '/manifest.webmanifest'
 ];
 
-self.addEventListener('install', (event)=>{
+// Install - cache core files
+self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(VERSION).then(cache=>cache.addAll(CORE)).then(self.skipWaiting())
+    caches.open(VERSION)
+      .then(cache => cache.addAll(CORE_CACHE))
+      .then(() => self.skipWaiting())
   );
 });
 
-self.addEventListener('activate', (event)=>{
+// Activate - clean old caches
+self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==VERSION).map(k=>caches.delete(k)))))
-  self.clients.claim();
+    caches.keys()
+      .then(cacheNames => {
+        return Promise.all(
+          cacheNames
+            .filter(name => name !== VERSION)
+            .map(name => caches.delete(name))
+        );
+      })
+      .then(() => self.clients.claim())
+  );
 });
 
-// Network-first for API, cache-first for assets
-self.addEventListener('fetch', (event)=>{
+// Fetch - network first for API, cache first for static
+self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+  
+  // Network-first for API calls
   if (url.pathname.includes('/api/')) {
     event.respondWith(
-      fetch(event.request).catch(()=>caches.match(event.request))
+      fetch(event.request)
+        .catch(() => caches.match(event.request))
     );
     return;
   }
+  
+  // Cache-first for everything else
   event.respondWith(
-    caches.match(event.request).then(cached=>{
-      const fetchPromise = fetch(event.request).then(resp=>{
-        const clone = resp.clone();
-        caches.open(VERSION).then(cache=>cache.put(event.request, clone));
-        return resp;
-      }).catch(()=>cached);
-      return cached || fetchPromise;
-    })
+    caches.match(event.request)
+      .then(cached => {
+        if (cached) return cached;
+        
+        return fetch(event.request)
+          .then(response => {
+            // Cache successful responses
+            if (response.status === 200) {
+              const clone = response.clone();
+              caches.open(VERSION)
+                .then(cache => cache.put(event.request, clone));
+            }
+            return response;
+          });
+      })
+      .catch(() => {
+        // Offline fallback
+        if (event.request.mode === 'navigate') {
+          return caches.match('/index.php');
+        }
+      })
   );
 });

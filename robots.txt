@@ -1,0 +1,10 @@
+# StumpVision - robots.txt
+
+User-agent: *
+Disallow: /api/
+Disallow: /data/
+Disallow: /assets/icons/
+Allow: /
+
+# Sitemap location (add when you create one)
+# Sitemap: https://yourdomain.com/sitemap.xml
