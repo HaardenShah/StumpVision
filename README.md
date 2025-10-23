@@ -263,7 +263,6 @@ Customize in `api/lib/CardRenderer.php`:
 
 ## 🔐 Security
 
-- ✅ `.htaccess` protects sensitive directories
 - ✅ No database = no SQL injection
 - ✅ Input sanitization on save
 - ✅ Read-only live viewer mode available
