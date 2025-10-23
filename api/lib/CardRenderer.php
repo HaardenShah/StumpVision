@@ -1,11 +1,6 @@
 <?php
 declare(strict_types=1);
 
-/**
- * StumpVision — api/lib/CardRenderer.php
- * All ImageMagick drawing lives here. Returns slide PNGs + cover PNG.
- */
-
 namespace StumpVision;
 
 use Imagick;
@@ -17,185 +12,282 @@ require_once __DIR__ . '/Util.php';
 
 final class CardRenderer
 {
-    /** Build all slides + cover. Returns [slides[], coverPng] */
+    /** Build premium gradient share card with modern design */
     public static function render(array $match, string $cardsDir, string $baseName): array
     {
         if (!extension_loaded('imagick')) {
             throw new \RuntimeException('Imagick extension not available');
         }
 
-        // Defensive extracts
-        $meta   = (isset($match['meta'])   && is_array($match['meta']))   ? $match['meta']   : [];
-        $teams  = (isset($match['teams'])  && is_array($match['teams']))  ? $match['teams']  : [[], []];
-        $inns   = (isset($match['innings'])&& is_array($match['innings'])) ? $match['innings'] : [];
+        // Extract data safely
+        $meta = (isset($match['meta']) && is_array($match['meta'])) ? $match['meta'] : [];
+        $teams = (isset($match['teams']) && is_array($match['teams'])) ? $match['teams'] : [[], []];
+        $inns = (isset($match['innings']) && is_array($match['innings'])) ? $match['innings'] : [];
 
-        $Aname = Util::safeStr($teams[0]['name'] ?? 'Team A', 'Team A');
-        $Bname = Util::safeStr($teams[1]['name'] ?? 'Team B', 'Team B');
+        $teamAName = Util::safeStr($teams[0]['name'] ?? 'Team A', 'Team A');
+        $teamBName = Util::safeStr($teams[1]['name'] ?? 'Team B', 'Team B');
 
-        // Summaries
-        [$Ar,$Aw,$Ao] = self::summaryFor(0, $inns, Util::safeInt($meta['ballsPerOver'] ?? 6, 6));
-        [$Br,$Bw,$Bo] = self::summaryFor(1, $inns, Util::safeInt($meta['ballsPerOver'] ?? 6, 6));
+        // Get scores
+        [$aRuns, $aWkts, $aOvers] = self::summaryFor(0, $inns, 6);
+        [$bRuns, $bWkts, $bOvers] = self::summaryFor(1, $inns, 6);
 
-        $winner = ($Ar === $Br) ? 'Tie'
-                 : (($Ar > $Br) ? "$Aname win by " . ($Ar - $Br) . " runs"
-                                : "$Bname win by " . ($Br - $Ar) . " runs");
+        // Determine winner
+        $winner = self::determineWinner($aRuns, $bRuns, $aWkts, $bWkts, $teamAName, $teamBName);
 
-        $extrasA = isset($inns[0]['extras']) && is_array($inns[0]['extras']) ? $inns[0]['extras'] : ['nb'=>0,'wd'=>0,'b'=>0,'lb'=>0];
-        $extrasB = isset($inns[1]['extras']) && is_array($inns[1]['extras']) ? $inns[1]['extras'] : ['nb'=>0,'wd'=>0,'b'=>0,'lb'=>0];
-
+        // Get top performers
         $topBat = self::topBatter($inns[0] ?? []);
-        $topBowl= self::topBowler($inns[0] ?? []);
+        $topBowl = self::topBowler($inns[0] ?? []);
 
-        // Paths
-        $slides = [
-            $cardsDir . "/{$baseName}-s0.png",
-            $cardsDir . "/{$baseName}-s1.png",
-            $cardsDir . "/{$baseName}-s2.png",
-            $cardsDir . "/{$baseName}-s3.png",
-        ];
-        $coverPng = $cardsDir . "/{$baseName}-cover.png";
+        $coverPng = $cardsDir . "/{$baseName}-card.png";
 
-        // Render slides
         try {
-            // Slide 0: Title
-            $c0 = self::mkCanvas();
-            self::text($c0, "🏏 StumpVision", 540, 220, 64, '#67e8f9', 'center');
-            self::text($c0, "Match Recap",    540, 300, 48, '#e5e7eb', 'center');
-            self::box($c0, 150, 360, 780, 360, 26);
-            self::text($c0, Util::safeStr($meta['title'] ?? 'Untitled Match','Untitled Match'), 540, 520, 44, '#e5e7eb', 'center');
-            self::text($c0, date('M j, Y'), 540, 580, 32, '#9ca3af', 'center');
-            self::save($c0, $slides[0]);
-
-            // Slide 1: Scores (aligned columns)
-            $c1 = self::mkCanvas();
-            self::box($c1, 120, 360, 360, 280, 24);
-            self::box($c1, 600, 360, 360, 280, 24);
-            self::text($c1, $Aname, 300, 390, 36, '#e5e7eb', 'center');
-            self::text($c1, $Bname, 780, 390, 36, '#e5e7eb', 'center');
-            self::text($c1, "{$Ar}/{$Aw}", 300, 520, 74, '#67e8f9', 'center');
-            self::text($c1, "{$Br}/{$Bw}", 780, 520, 74, '#67e8f9', 'center');
-            self::text($c1, "{$Ao} ov", 300, 570, 30, '#9ca3af', 'center');
-            self::text($c1, "{$Bo} ov", 780, 570, 30, '#9ca3af', 'center');
-            self::text($c1, "🏆 {$winner}", 540, 740, 44, '#67e8f9', 'center');
-            self::save($c1, $slides[1]);
-
-            // Slide 2: Highlights
-            $c2 = self::mkCanvas();
-            self::box($c2, 100, 320, 880, 480, 24);
-            $batLine  = Util::safeStr($topBat['name']) . ' — ' . Util::safeInt($topBat['runs']) . ' (' . Util::safeInt($topBat['balls']) . ')';
-            $bowlLine = Util::safeStr($topBowl['name']) . ' — ' . Util::safeInt($topBowl['wickets']) . '/' . Util::safeInt($topBowl['runs']);
-            self::text($c2, "Top Batter", 540, 420, 30, '#9ca3af', 'center');
-            self::text($c2, $batLine,     540, 470, 42, '#e5e7eb', 'center');
-            self::text($c2, "Top Bowler", 540, 540, 30, '#9ca3af', 'center');
-            self::text($c2, $bowlLine,    540, 590, 42, '#e5e7eb', 'center');
-            $exA = "A Extras: nb ".Util::safeInt($extrasA['nb']??0).", wd ".Util::safeInt($extrasA['wd']??0).", b ".Util::safeInt($extrasA['b']??0).", lb ".Util::safeInt($extrasA['lb']??0);
-            $exB = "B Extras: nb ".Util::safeInt($extrasB['nb']??0).", wd ".Util::safeInt($extrasB['wd']??0).", b ".Util::safeInt($extrasB['b']??0).", lb ".Util::safeInt($extrasB['lb']??0);
-            self::text($c2, $exA, 540, 660, 28, '#9ca3af', 'center');
-            self::text($c2, $exB, 540, 700, 28, '#9ca3af', 'center');
-            self::save($c2, $slides[2]);
-
-            // Slide 3: Outro
-            $c3 = self::mkCanvas();
-            self::text($c3, "Generated by StumpVision", 540, 520, 40, '#e5e7eb', 'center');
-            self::text($c3, "stump.vision",              540, 580, 34, '#9ca3af', 'center');
-            self::save($c3, $slides[3]);
-
-            // Cover = slide 1
-            @copy($slides[1], $coverPng);
+            // Create 1080x1920 card (Instagram Story size)
+            $card = self::createGradientCanvas();
+            
+            // Add glassmorphism card overlay
+            self::addGlassCard($card, 60, 180, 960, 1560);
+            
+            // Header - StumpVision branding
+            self::text($card, 'STUMPVISION', 540, 120, 32, '#ffffff', 'center', 800);
+            self::text($card, 'MATCH SCORECARD', 540, 160, 20, 'rgba(255,255,255,0.7)', 'center', 400);
+            
+            // Team A Score - Large and prominent
+            self::addTeamSection($card, $teamAName, $aRuns, $aWkts, $aOvers, 260, true);
+            
+            // VS divider with match info
+            self::text($card, 'VS', 540, 520, 28, 'rgba(255,255,255,0.5)', 'center', 600);
+            $matchInfo = Util::safeInt($meta['oversPerSide'] ?? 20) . ' OVERS';
+            self::text($card, $matchInfo, 540, 560, 16, 'rgba(255,255,255,0.4)', 'center', 400);
+            
+            // Team B Score
+            self::addTeamSection($card, $teamBName, $bRuns, $bWkts, $bOvers, 640, false);
+            
+            // Winner banner with gradient
+            self::addWinnerBanner($card, $winner, 1040);
+            
+            // Top Performers section
+            self::addPerformersSection($card, $topBat, $topBowl, 1180);
+            
+            // Footer - Clean and minimal
+            self::text($card, 'Powered by StumpVision', 540, 1840, 18, 'rgba(255,255,255,0.4)', 'center', 400);
+            
+            // Save the card
+            self::save($card, $coverPng);
+            
+            return [[$coverPng], $coverPng];
         } catch (Throwable $e) {
-            throw new \RuntimeException('Imagick render error: ' . $e->getMessage());
+            throw new \RuntimeException('Card render error: ' . $e->getMessage());
         }
-
-        return [$slides, $coverPng];
     }
 
-    /* ---------------- private helpers ---------------- */
+    private static function createGradientCanvas(): Imagick
+    {
+        $im = new Imagick();
+        $im->newImage(1080, 1920, new ImagickPixel('transparent'));
+        $im->setImageFormat('png');
+        
+        // Create modern blue-purple gradient
+        $gradient = new Imagick();
+        $gradient->newPseudoImage(1080, 1920, 'gradient:#0ea5e9-#7c3aed');
+        
+        // Add subtle noise texture for depth
+        $gradient->addNoiseImage(\Imagick::NOISE_GAUSSIAN, \Imagick::CHANNEL_ALL);
+        $gradient->blurImage(0, 1);
+        
+        $im->compositeImage($gradient, \Imagick::COMPOSITE_OVER, 0, 0);
+        $gradient->destroy();
+        
+        return $im;
+    }
 
-    /** innings summary: [runs, wickets, oversString] for team index */
+    private static function addGlassCard(Imagick $im, int $x, int $y, int $w, int $h): void
+    {
+        // Create frosted glass effect with rounded corners
+        $glass = new ImagickDraw();
+        $glass->setFillColor(new ImagickPixel('rgba(255, 255, 255, 0.1)'));
+        $glass->setStrokeColor(new ImagickPixel('rgba(255, 255, 255, 0.2)'));
+        $glass->setStrokeWidth(2);
+        $glass->roundRectangle($x, $y, $x + $w, $y + $h, 40, 40);
+        $im->drawImage($glass);
+    }
+
+    private static function addTeamSection(Imagick $im, string $team, int $runs, int $wkts, string $overs, int $y, bool $isFirst): void
+    {
+        // Team name with subtle uppercase
+        self::text($im, strtoupper($team), 540, $y, 24, 'rgba(255,255,255,0.8)', 'center', 600);
+        
+        // Massive score display
+        $scoreY = $y + 60;
+        self::text($im, (string)$runs, 460, $scoreY, 96, '#ffffff', 'right', 800);
+        self::text($im, '/', 540, $scoreY, 80, 'rgba(255,255,255,0.5)', 'center', 400);
+        self::text($im, (string)$wkts, 620, $scoreY, 96, '#ffffff', 'left', 800);
+        
+        // Overs info below score
+        self::text($im, $overs . ' OVERS', 540, $scoreY + 80, 20, 'rgba(255,255,255,0.6)', 'center', 400);
+        
+        // Add subtle divider line
+        $divider = new ImagickDraw();
+        $divider->setStrokeColor(new ImagickPixel('rgba(255,255,255,0.2)'));
+        $divider->setStrokeWidth(2);
+        $divider->line(240, $y + 160, 840, $y + 160);
+        $im->drawImage($divider);
+    }
+
+    private static function addWinnerBanner(Imagick $im, string $winner, int $y): void
+    {
+        // Highlight box with gradient
+        $box = new ImagickDraw();
+        $box->setFillColor(new ImagickPixel('rgba(34, 211, 238, 0.2)'));
+        $box->setStrokeColor(new ImagickPixel('rgba(34, 211, 238, 0.4)'));
+        $box->setStrokeWidth(2);
+        $box->roundRectangle(120, $y, 960, $y + 80, 20, 20);
+        $im->drawImage($box);
+        
+        // Winner text
+        self::text($im, '🏆 ' . $winner, 540, $y + 55, 28, '#22d3ee', 'center', 700);
+    }
+
+    private static function addPerformersSection(Imagick $im, array $topBat, array $topBowl, int $y): void
+    {
+        // Section header
+        self::text($im, 'TOP PERFORMERS', 540, $y, 18, 'rgba(255,255,255,0.5)', 'center', 600);
+        
+        // Top Batter
+        $batY = $y + 60;
+        self::addPerformerCard($im, 180, $batY, 380, 180, '🏏 BATTING', $topBat);
+        
+        // Top Bowler
+        self::addPerformerCard($im, 600, $batY, 380, 180, '⚡ BOWLING', $topBowl);
+    }
+
+    private static function addPerformerCard(Imagick $im, int $x, int $y, int $w, int $h, string $label, array $stats): void
+    {
+        // Card background
+        $card = new ImagickDraw();
+        $card->setFillColor(new ImagickPixel('rgba(255, 255, 255, 0.08)'));
+        $card->setStrokeColor(new ImagickPixel('rgba(255, 255, 255, 0.15)'));
+        $card->setStrokeWidth(1);
+        $card->roundRectangle($x, $y, $x + $w, $y + $h, 16, 16);
+        $im->drawImage($card);
+        
+        // Label
+        self::text($im, $label, $x + $w/2, $y + 35, 14, 'rgba(255,255,255,0.5)', 'center', 600);
+        
+        // Player name
+        $name = Util::safeStr($stats['name'] ?? '—', '—');
+        self::text($im, $name, $x + $w/2, $y + 75, 22, '#ffffff', 'center', 700);
+        
+        // Stats
+        if (isset($stats['runs'])) {
+            // Batting stats
+            $statLine = Util::safeInt($stats['runs']) . ' (' . Util::safeInt($stats['balls']) . ')';
+            self::text($im, $statLine, $x + $w/2, $y + 115, 28, '#22d3ee', 'center', 800);
+            
+            // Boundaries
+            $boundaries = Util::safeInt($stats['fours'] ?? 0) . '×4  ' . Util::safeInt($stats['sixes'] ?? 0) . '×6';
+            self::text($im, $boundaries, $x + $w/2, $y + 145, 16, 'rgba(255,255,255,0.6)', 'center', 400);
+        } else {
+            // Bowling stats
+            $statLine = Util::safeInt($stats['wickets'] ?? 0) . '/' . Util::safeInt($stats['runs'] ?? 0);
+            self::text($im, $statLine, $x + $w/2, $y + 115, 28, '#22d3ee', 'center', 800);
+            
+            // Overs
+            $balls = Util::safeInt($stats['balls'] ?? 0);
+            $overs = floor($balls / 6) . '.' . ($balls % 6);
+            self::text($im, $overs . ' OVERS', $x + $w/2, $y + 145, 16, 'rgba(255,255,255,0.6)', 'center', 400);
+        }
+    }
+
+    private static function text(Imagick $im, string $text, float $x, float $y, int $size, string $color, string $align = 'left', int $weight = 400): void
+    {
+        $d = new ImagickDraw();
+        $d->setFillColor(new ImagickPixel($color));
+        
+        // Try to use Inter font if available, fallback to system font
+        $fontPath = __DIR__ . '/../../assets/fonts/Inter_24pt-Bold.ttf';
+        if (file_exists($fontPath)) {
+            $d->setFont($fontPath);
+        }
+        // If font doesn't exist, ImageMagick will use system default
+        
+        $d->setFontSize($size);
+        $d->setFontWeight($weight);
+        
+        if ($align === 'center') $d->setTextAlignment(\Imagick::ALIGN_CENTER);
+        elseif ($align === 'right') $d->setTextAlignment(\Imagick::ALIGN_RIGHT);
+        
+        $im->annotateImage($d, $x, $y, 0, $text);
+    }
+
     private static function summaryFor(int $teamIndex, array $innings, int $bpo): array
     {
         foreach ($innings as $inn) {
             if (!is_array($inn)) continue;
             if (($inn['batting'] ?? null) === $teamIndex) {
-                $r  = Util::safeInt($inn['runs'] ?? 0);
-                $w  = Util::safeInt($inn['wickets'] ?? 0);
-                $bp = Util::safeInt($inn['ballsPerOver'] ?? $bpo, $bpo);
+                $r = Util::safeInt($inn['runs'] ?? 0);
+                $w = Util::safeInt($inn['wickets'] ?? 0);
                 $bs = Util::safeInt($inn['balls'] ?? 0);
-                $overs = floor($bs / max(1,$bp)) . "." . ($bs % max(1,$bp));
+                $overs = floor($bs / max(1, $bpo)) . "." . ($bs % max(1, $bpo));
                 return [$r, $w, $overs];
             }
         }
-        return [0,0,'0.0'];
+        return [0, 0, '0.0'];
     }
 
-    /** heuristic top batter */
     private static function topBatter(array $inn): array
     {
-        $top = ['name'=>'—','runs'=>0,'balls'=>0];
+        $top = ['name' => '—', 'runs' => 0, 'balls' => 0, 'fours' => 0, 'sixes' => 0];
         $rows = isset($inn['batStats']) && is_array($inn['batStats']) ? $inn['batStats'] : [];
         foreach ($rows as $row) {
             if (!is_array($row)) continue;
             if (Util::safeInt($row['runs'] ?? 0) > $top['runs']) {
                 $top = [
-                    'name'=> Util::safeStr($row['name'] ?? '—','—'),
-                    'runs'=> Util::safeInt($row['runs'] ?? 0),
-                    'balls'=> Util::safeInt($row['balls'] ?? 0),
+                    'name' => Util::safeStr($row['name'] ?? '—', '—'),
+                    'runs' => Util::safeInt($row['runs'] ?? 0),
+                    'balls' => Util::safeInt($row['balls'] ?? 0),
+                    'fours' => Util::safeInt($row['fours'] ?? 0),
+                    'sixes' => Util::safeInt($row['sixes'] ?? 0),
                 ];
             }
         }
         return $top;
     }
 
-    /** heuristic top bowler */
     private static function topBowler(array $inn): array
     {
-        $top = ['name'=>'—','wickets'=>0,'runs'=>0];
+        $top = ['name' => '—', 'wickets' => 0, 'runs' => 0, 'balls' => 0];
         $rows = isset($inn['bowlStats']) && is_array($inn['bowlStats']) ? $inn['bowlStats'] : [];
         foreach ($rows as $row) {
             if (!is_array($row)) continue;
             $w = Util::safeInt($row['wickets'] ?? 0);
             if ($w > $top['wickets']) {
                 $top = [
-                    'name'=> Util::safeStr($row['name'] ?? '—','—'),
-                    'wickets'=> $w,
-                    'runs'=> Util::safeInt($row['runs'] ?? 0),
+                    'name' => Util::safeStr($row['name'] ?? '—', '—'),
+                    'wickets' => $w,
+                    'runs' => Util::safeInt($row['runs'] ?? 0),
+                    'balls' => Util::safeInt($row['balls'] ?? 0),
                 ];
             }
         }
         return $top;
     }
 
-    private static function mkCanvas(int $w = 1080, int $h = 1080): Imagick
+    private static function determineWinner(int $aRuns, int $bRuns, int $aWkts, int $bWkts, string $teamA, string $teamB): string
     {
-        $im = new Imagick();
-        $im->newImage($w, $h, new ImagickPixel('#0b1120'));
-        $im->setImageFormat('png');
-        return $im;
-    }
-
-    private static function text(Imagick $im, string $text, float $x, float $y, int $size, string $color, string $align = 'left'): void
-    {
-        $d = new ImagickDraw();
-        $d->setFillColor(new ImagickPixel($color));
-        $d->setFontSize($size);
-        if ($align === 'center') $d->setTextAlignment(Imagick::ALIGN_CENTER);
-        elseif ($align === 'right') $d->setTextAlignment(Imagick::ALIGN_RIGHT);
-        $im->annotateImage($d, $x, $y, 0, $text);
-    }
-
-    private static function box(Imagick $im, int $x, int $y, int $w, int $h, int $r = 20, string $stroke = '#22314b', string $fill = 'rgba(255,255,255,0.03)'): void
-    {
-        $d = new ImagickDraw();
-        $d->setFillColor(new ImagickPixel($fill));
-        $d->setStrokeColor(new ImagickPixel($stroke));
-        $d->setStrokeWidth(2);
-        $d->roundRectangle($x, $y, $x+$w, $y+$h, $r, $r);
-        $im->drawImage($d);
+        if ($aRuns === $bRuns) return 'Match Tied';
+        if ($aRuns > $bRuns) {
+            $margin = $aRuns - $bRuns;
+            return "$teamA won by $margin runs";
+        } else {
+            $wicketsLeft = 10 - $bWkts;
+            return "$teamB won by $wicketsLeft wickets";
+        }
     }
 
     private static function save(Imagick $im, string $path): void
     {
         $im->writeImage($path);
-        $im->clear(); $im->destroy();
+        $im->clear();
+        $im->destroy();
     }
 }
