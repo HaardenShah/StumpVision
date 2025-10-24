@@ -2,12 +2,12 @@
   "name": "StumpVision - Cricket Scorer",
   "short_name": "StumpVision",
   "description": "Fast, clean cricket scoring for pickup matches",
-  "start_url": "/index.php",
+  "start_url": "./index.php",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#0ea5e9",
   "orientation": "portrait",
-  "scope": "/",
+  "scope": "./",
   "icons": [
     {
       "src": "assets/icons/icon-192.png",

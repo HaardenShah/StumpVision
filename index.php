@@ -320,7 +320,7 @@
       batsmen: {},
       bowlers: {},
       extras: { nb: 0, wd: 0, b: 0, lb: 0 },
-      ballHistory: [],
+      addToBallHistory: [],
       firstInningsScore: null,
       saveId: null
     };
@@ -346,14 +346,15 @@
         matchState.battingTeam = matchState.setup.tossWinner === 'teamA' ? 'teamB' : 'teamA';
       }
       
-      // Initialize all players
-      matchState.setup.teamA.players.forEach(p => {
-        matchState.batsmen[p] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false };
-      });
-      matchState.setup.teamB.players.forEach(p => {
-        matchState.batsmen[p] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false };
-        matchState.bowlers[p] = { overs: 0, balls: 0, runs: 0, wickets: 0 };
-      });
+      // Initialize all players - BOTH teams need bowler stats
+    matchState.setup.teamA.players.forEach(p => {
+      matchState.batsmen[p] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false };
+      matchState.bowlers[p] = { overs: 0, balls: 0, runs: 0, wickets: 0 };
+    });
+    matchState.setup.teamB.players.forEach(p => {
+      matchState.batsmen[p] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false };
+      matchState.bowlers[p] = { overs: 0, balls: 0, runs: 0, wickets: 0 };
+    });
       
       promptStartingPlayers();
       updateDisplay();
@@ -415,11 +416,12 @@
       // Reset free hit
       matchState.freeHit = false;
       
-      // Save to history
-      matchState.ballHistory.push({
+      // Save to history with complete state
+      matchState.addToBallHistory.push({
         type: 'legal',
         runs: runs,
         striker: matchState.striker,
+        nonStriker: matchState.nonStriker, // ADDED
         bowler: matchState.bowler
       });
       
@@ -436,6 +438,7 @@
       haptic('medium');
       
       matchState.batsmen[matchState.striker].runs += batRuns;
+      matchState.batsmen[matchState.striker].balls += 1; // ADDED: Striker faced the ball
       if (batRuns === 4) matchState.batsmen[matchState.striker].fours += 1;
       if (batRuns === 6) matchState.batsmen[matchState.striker].sixes += 1;
       
@@ -450,7 +453,7 @@
         [matchState.striker, matchState.nonStriker] = [matchState.nonStriker, matchState.striker];
       }
       
-      matchState.ballHistory.push({ type: 'noball', runs: batRuns, striker: matchState.striker, bowler: matchState.bowler });
+      matchState.addToBallHistory.push({ type: 'noball', runs: batRuns, striker: matchState.striker, bowler: matchState.bowler });
       updateDisplay();
     }
 
@@ -467,7 +470,7 @@
       matchState.extras.wd += totalRuns;
       matchState.thisOver.push(`${totalRuns}WD`);
       
-      matchState.ballHistory.push({ type: 'wide', runs: totalRuns, bowler: matchState.bowler });
+      matchState.addToBallHistory.push({ type: 'wide', runs: totalRuns, bowler: matchState.bowler });
       updateDisplay();
     }
 
@@ -478,6 +481,7 @@
     function processBye(runs) {
       closeModal('byeModal');
       
+      matchState.batsmen[matchState.striker].balls += 1; // ADDED: Striker faced the ball
       matchState.bowlers[matchState.bowler].balls += 1;
       matchState.score.runs += runs;
       matchState.extras.b += runs;
@@ -493,7 +497,7 @@
         completeOver();
       }
       
-      matchState.ballHistory.push({ type: 'bye', runs: runs, bowler: matchState.bowler });
+      matchState.addToBallHistory.push({ type: 'bye', runs: runs, bowler: matchState.bowler });
       updateDisplay();
     }
 
@@ -501,9 +505,10 @@
       document.getElementById('legByeModal').classList.add('active');
     }
 
-    function processLegBye(runs) {
+   function processLegBye(runs) {
       closeModal('legByeModal');
       
+      matchState.batsmen[matchState.striker].balls += 1; // ADDED: Striker faced the ball
       matchState.bowlers[matchState.bowler].balls += 1;
       matchState.score.runs += runs;
       matchState.extras.lb += runs;
@@ -519,7 +524,7 @@
         completeOver();
       }
       
-      matchState.ballHistory.push({ type: 'legbye', runs: runs, bowler: matchState.bowler });
+      matchState.addToBallHistory.push({ type: 'legbye', runs: runs, bowler: matchState.bowler });
       updateDisplay();
     }
 
@@ -541,17 +546,29 @@
       
       matchState.thisOver.push('W');
       
+      // Check if innings complete
       if (matchState.score.wickets >= matchState.setup.wicketsLimit) {
         alert('Innings Complete!');
         newInnings();
         return;
       }
       
-      if (matchState.balls === 6) {
-        completeOver();
+      // Store if over needs completion BEFORE resetting balls
+      const overComplete = (matchState.balls === 6);
+      if (overComplete) {
+        matchState.balls = 0;
+        matchState.pendingOverComplete = true;
+      } else {
+        matchState.pendingOverComplete = false;
       }
       
-      matchState.ballHistory.push({ type: 'wicket', striker: matchState.striker, bowler: matchState.bowler });
+      matchState.addToBallHistory.push({ 
+        type: 'wicket', 
+        striker: matchState.striker, 
+        bowler: matchState.bowler,
+        overComplete: overComplete
+      });
+      
       showBatsmanModal();
     }
 
@@ -595,7 +612,15 @@
         matchState.striker = select.value;
         closeModal('batsmanModal');
         document.getElementById('batsmanModalTitle').textContent = 'New Batsman';
-        updateDisplay();
+        
+        // Check if we need to complete the over after new batsman selected
+        if (matchState.pendingOverComplete) {
+          matchState.pendingOverComplete = false;
+          [matchState.striker, matchState.nonStriker] = [matchState.nonStriker, matchState.striker];
+          showNewOverModal();
+        } else {
+          updateDisplay();
+        }
       }
     }
 
@@ -627,6 +652,13 @@
 
     function confirmNewOver() {
       const select = document.getElementById('newBowlerSelect');
+      
+      // ADDED: Complete the previous bowler's over count
+      if (matchState.bowler && matchState.bowlers[matchState.bowler]) {
+        const prevBowler = matchState.bowlers[matchState.bowler];
+        prevBowler.overs = Math.floor(prevBowler.balls / 6);
+      }
+      
       matchState.bowler = select.value;
       
       if (!matchState.bowlers[matchState.bowler]) {
@@ -645,10 +677,10 @@
     }
 
     function undoLastBall() {
-      if (matchState.ballHistory.length === 0) return;
+      if (matchState.addToBallHistory.length === 0) return;
       haptic('medium');
       
-      const lastBall = matchState.ballHistory.pop();
+      const lastBall = matchState.addToBallHistory.pop();
       
       if (lastBall.type === 'legal') {
         matchState.batsmen[lastBall.striker].runs -= lastBall.runs;
@@ -659,6 +691,11 @@
         matchState.bowlers[lastBall.bowler].balls -= 1;
         matchState.score.runs -= lastBall.runs;
         matchState.balls -= 1;
+        
+        // ADDED: Restore strike positions
+        if (lastBall.nonStriker) {
+          matchState.striker = lastBall.striker;
+          matchState.nonStriker = lastBall.nonStriker;
       } else if (lastBall.type === 'noball') {
         matchState.batsmen[lastBall.striker].runs -= lastBall.runs;
         if (lastBall.runs === 4) matchState.batsmen[lastBall.striker].fours -= 1;
@@ -802,26 +839,61 @@
         alert('Match Complete!');
         return;
       }
+
+    // Limit ball history to prevent memory issues
+    function addToBallHistory(entry) {
+      matchState.ballHistory.push(entry);
+      
+      // Keep only last 50 balls for undo capability
+      if (matchState.ballHistory.length > 50) {
+        matchState.ballHistory.shift();
+      }
+    }
       
       matchState.firstInningsScore = matchState.score.runs;
       matchState.innings = 2;
       [matchState.battingTeam, matchState.bowlingTeam] = [matchState.bowlingTeam, matchState.battingTeam];
+      
+      // Reset match counters
       matchState.score = { runs: 0, wickets: 0 };
       matchState.overs = 0;
       matchState.balls = 0;
       matchState.thisOver = [];
-      matchState.ballHistory = [];
+      matchState.addToBallHistory = [];
       matchState.freeHit = false;
       matchState.striker = null;
       matchState.nonStriker = null;
       matchState.bowler = null;
       
-      updateDisplay();
+      // Reset extras for second innings
+      matchState.extras = { nb: 0, wd: 0, b: 0, lb: 0 };
       
-      const target = matchState.firstInningsScore + 1;
-      alert(`Innings break!\n\n${matchState.setup[matchState.bowlingTeam].name} scored ${matchState.firstInningsScore} runs.\n\n${matchState.setup[matchState.battingTeam].name} needs ${target} runs to win!`);
+      // Initialize NEW batting team's stats (reset their batting stats)
+      const newBattingPlayers = matchState.setup[matchState.battingTeam].players;
+      newBattingPlayers.forEach(p => {
+        matchState.batsmen[p] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false };
+      });
       
-      promptSecondInningsPlayers();
+      // Initialize NEW bowling team's bowling stats (reset their bowling stats)
+      const newBowlingPlayers = matchState.setup[matchState.bowlingTeam].players;
+      newBowlingPlayers.forEach(p => {
+        if (!matchState.bowlers[p]) {
+          matchState.bowlers[p] = { overs: 0, balls: 0, runs: 0, wickets: 0 };
+        } else {
+          matchState.bowlers[p] = { overs: 0, balls: 0, runs: 0, wickets: 0 };
+        }
+      });
+      
+      function updateDisplay() {
+      try {
+        console.log('Updating display...');
+        
+        // ... ALL EXISTING CODE ...
+        
+      } catch (err) {
+        console.error('Display update error:', err);
+        alert('Display error occurred. Please refresh the page. Error: ' + err.message);
+      }
     }
 
     function promptSecondInningsPlayers() {
