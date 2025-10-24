@@ -3,46 +3,60 @@ declare(strict_types=1);
 
 /**
  * StumpVision — api/lib/Util.php
- * Small, safe utility helpers for the render pipeline.
+ * Safe utility helpers for the render pipeline
  */
 
 namespace StumpVision;
 
 final class Util
 {
-    /** Safe string cast with default. */
-    public static function safeStr($v, string $def = ''): string
+    /**
+     * Safe string cast with default fallback
+     */
+    public static function safeStr($value, string $default = ''): string
     {
-        return is_string($v) ? $v : (is_numeric($v) ? (string)$v : $def);
-    }
-
-    /** Safe int cast with default. */
-    public static function safeInt($v, int $def = 0): int
-    {
-        return is_numeric($v) ? (int)$v : $def;
-    }
-
-    /** Find a binary on PATH (returns full path or null). */
-    public static function which(string $bin): ?string
-    {
-        $path = getenv('PATH') ?: '';
-        foreach (explode(PATH_SEPARATOR, $path) as $p) {
-            $full = rtrim($p, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $bin;
-            if (is_file($full) && is_executable($full)) {
-                return $full;
-            }
+        if (is_string($value)) {
+            return $value;
         }
-        return null;
+        if (is_numeric($value)) {
+            return (string)$value;
+        }
+        return $default;
     }
 
-    /** Project directories. */
+    /**
+     * Safe integer cast with default fallback
+     */
+    public static function safeInt($value, int $default = 0): int
+    {
+        if (is_numeric($value)) {
+            return (int)$value;
+        }
+        return $default;
+    }
+
+    /**
+     * Get project directories
+     * Returns: [rootDir, dataDir, cardsDir]
+     */
     public static function dirs(): array
     {
-        $root    = dirname(__DIR__, 1); // api/
-        $root    = dirname($root);      // project root
-        $dataDir = $root . DIRECTORY_SEPARATOR . 'data';
-        $cards   = $dataDir . DIRECTORY_SEPARATOR . 'cards';
-        if (!is_dir($cards)) @mkdir($cards, 0775, true);
-        return [$root, $dataDir, $cards];
+        // Go up from api/lib/ to project root
+        $apiLibDir = __DIR__;
+        $apiDir = dirname($apiLibDir);
+        $rootDir = dirname($apiDir);
+        
+        $dataDir = $rootDir . DIRECTORY_SEPARATOR . 'data';
+        $cardsDir = $dataDir . DIRECTORY_SEPARATOR . 'cards';
+        
+        // Create directories if they don't exist
+        if (!is_dir($dataDir)) {
+            @mkdir($dataDir, 0755, true);
+        }
+        if (!is_dir($cardsDir)) {
+            @mkdir($cardsDir, 0755, true);
+        }
+        
+        return [$rootDir, $dataDir, $cardsDir];
     }
 }

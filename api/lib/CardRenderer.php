@@ -6,7 +6,8 @@ namespace StumpVision;
 use Imagick;
 use ImagickDraw;
 use ImagickPixel;
-use Throwable;
+use ImagickException;
+use RuntimeException;
 
 require_once __DIR__ . '/Util.php';
 
@@ -16,7 +17,7 @@ final class CardRenderer
     public static function render(array $match, string $cardsDir, string $baseName): array
     {
         if (!extension_loaded('imagick')) {
-            throw new \RuntimeException('Imagick extension not available');
+            throw new RuntimeException('Imagick extension not available');
         }
 
         // Extract data safely
@@ -75,11 +76,14 @@ final class CardRenderer
             self::save($card, $coverPng);
             
             return [[$coverPng], $coverPng];
-        } catch (Throwable $e) {
-            throw new \RuntimeException('Card render error: ' . $e->getMessage());
+        } catch (ImagickException $e) {
+            throw new RuntimeException('Card render error: ' . $e->getMessage());
         }
     }
 
+    /**
+     * @throws ImagickException
+     */
     private static function createGradientCanvas(): Imagick
     {
         $im = new Imagick();
@@ -91,15 +95,18 @@ final class CardRenderer
         $gradient->newPseudoImage(1080, 1920, 'gradient:#0ea5e9-#7c3aed');
         
         // Add subtle noise texture for depth
-        $gradient->addNoiseImage(\Imagick::NOISE_GAUSSIAN, \Imagick::CHANNEL_ALL);
+        $gradient->addNoiseImage(Imagick::NOISE_GAUSSIAN, Imagick::CHANNEL_ALL);
         $gradient->blurImage(0, 1);
         
-        $im->compositeImage($gradient, \Imagick::COMPOSITE_OVER, 0, 0);
+        $im->compositeImage($gradient, Imagick::COMPOSITE_OVER, 0, 0);
         $gradient->destroy();
         
         return $im;
     }
 
+    /**
+     * @throws ImagickException
+     */
     private static function addGlassCard(Imagick $im, int $x, int $y, int $w, int $h): void
     {
         // Create frosted glass effect with rounded corners
@@ -111,6 +118,9 @@ final class CardRenderer
         $im->drawImage($glass);
     }
 
+    /**
+     * @throws ImagickException
+     */
     private static function addTeamSection(Imagick $im, string $team, int $runs, int $wkts, string $overs, int $y, bool $isFirst): void
     {
         // Team name with subtle uppercase
@@ -133,6 +143,9 @@ final class CardRenderer
         $im->drawImage($divider);
     }
 
+    /**
+     * @throws ImagickException
+     */
     private static function addWinnerBanner(Imagick $im, string $winner, int $y): void
     {
         // Highlight box with gradient
@@ -147,6 +160,9 @@ final class CardRenderer
         self::text($im, '🏆 ' . $winner, 540, $y + 55, 28, '#22d3ee', 'center', 700);
     }
 
+    /**
+     * @throws ImagickException
+     */
     private static function addPerformersSection(Imagick $im, array $topBat, array $topBowl, int $y): void
     {
         // Section header
@@ -160,6 +176,9 @@ final class CardRenderer
         self::addPerformerCard($im, 600, $batY, 380, 180, '⚡ BOWLING', $topBowl);
     }
 
+    /**
+     * @throws ImagickException
+     */
     private static function addPerformerCard(Imagick $im, int $x, int $y, int $w, int $h, string $label, array $stats): void
     {
         // Card background
@@ -198,6 +217,9 @@ final class CardRenderer
         }
     }
 
+    /**
+     * @throws ImagickException
+     */
     private static function text(Imagick $im, string $text, float $x, float $y, int $size, string $color, string $align = 'left', int $weight = 400): void
     {
         $d = new ImagickDraw();
@@ -213,8 +235,11 @@ final class CardRenderer
         $d->setFontSize($size);
         $d->setFontWeight($weight);
         
-        if ($align === 'center') $d->setTextAlignment(\Imagick::ALIGN_CENTER);
-        elseif ($align === 'right') $d->setTextAlignment(\Imagick::ALIGN_RIGHT);
+        if ($align === 'center') {
+            $d->setTextAlignment(Imagick::ALIGN_CENTER);
+        } elseif ($align === 'right') {
+            $d->setTextAlignment(Imagick::ALIGN_RIGHT);
+        }
         
         $im->annotateImage($d, $x, $y, 0, $text);
     }
@@ -222,7 +247,9 @@ final class CardRenderer
     private static function summaryFor(int $teamIndex, array $innings, int $bpo): array
     {
         foreach ($innings as $inn) {
-            if (!is_array($inn)) continue;
+            if (!is_array($inn)) {
+                continue;
+            }
             if (($inn['batting'] ?? null) === $teamIndex) {
                 $r = Util::safeInt($inn['runs'] ?? 0);
                 $w = Util::safeInt($inn['wickets'] ?? 0);
@@ -239,7 +266,9 @@ final class CardRenderer
         $top = ['name' => '—', 'runs' => 0, 'balls' => 0, 'fours' => 0, 'sixes' => 0];
         $rows = isset($inn['batStats']) && is_array($inn['batStats']) ? $inn['batStats'] : [];
         foreach ($rows as $row) {
-            if (!is_array($row)) continue;
+            if (!is_array($row)) {
+                continue;
+            }
             if (Util::safeInt($row['runs'] ?? 0) > $top['runs']) {
                 $top = [
                     'name' => Util::safeStr($row['name'] ?? '—', '—'),
@@ -258,7 +287,9 @@ final class CardRenderer
         $top = ['name' => '—', 'wickets' => 0, 'runs' => 0, 'balls' => 0];
         $rows = isset($inn['bowlStats']) && is_array($inn['bowlStats']) ? $inn['bowlStats'] : [];
         foreach ($rows as $row) {
-            if (!is_array($row)) continue;
+            if (!is_array($row)) {
+                continue;
+            }
             $w = Util::safeInt($row['wickets'] ?? 0);
             if ($w > $top['wickets']) {
                 $top = [
@@ -274,7 +305,9 @@ final class CardRenderer
 
     private static function determineWinner(int $aRuns, int $bRuns, int $aWkts, int $bWkts, string $teamA, string $teamB): string
     {
-        if ($aRuns === $bRuns) return 'Match Tied';
+        if ($aRuns === $bRuns) {
+            return 'Match Tied';
+        }
         if ($aRuns > $bRuns) {
             $margin = $aRuns - $bRuns;
             return "$teamA won by $margin runs";
@@ -284,6 +317,9 @@ final class CardRenderer
         }
     }
 
+    /**
+     * @throws ImagickException
+     */
     private static function save(Imagick $im, string $path): void
     {
         $im->writeImage($path);
