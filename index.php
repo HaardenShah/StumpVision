@@ -556,8 +556,7 @@
       matchState.thisOver.push('W');
       
       if (matchState.score.wickets >= matchState.setup.wicketsLimit) {
-        alert('Innings Complete!');
-        newInnings();
+        handleInningsComplete();
         return;
       }
       
@@ -631,15 +630,14 @@
     }
 
     function completeOver() {
-      matchState.overs += 1;
-      matchState.balls = 0;
-      matchState.thisOver = [];
-      
-      if (matchState.overs >= matchState.setup.oversPerInnings) {
-        alert('Innings Complete!');
-        newInnings();
-        return;
-      }
+  matchState.overs += 1;
+  matchState.balls = 0;
+  matchState.thisOver = [];
+  
+  if (matchState.overs >= matchState.setup.oversPerInnings) {
+    handleInningsComplete();
+    return;
+  }
       
       [matchState.striker, matchState.nonStriker] = [matchState.nonStriker, matchState.striker];
       showNewOverModal();
@@ -1058,6 +1056,69 @@
       }
     }
 
+    // Handle innings completion
+    async function handleInningsComplete() {
+      if (matchState.innings === 1) {
+        // First innings complete - start second
+        alert('First Innings Complete!');
+        newInnings();
+      } else {
+        // Match complete - auto-save and redirect
+        await completeMatch();
+      }
+    }
+
+    // Complete match and redirect to summary
+    async function completeMatch() {
+      try {
+        // Auto-save the match
+        const payload = {
+          meta: {
+            title: `${matchState.setup.teamA.name} vs ${matchState.setup.teamB.name}`,
+            oversPerSide: matchState.setup.oversPerInnings,
+            ballsPerOver: 6,
+            wicketsLimit: matchState.setup.wicketsLimit
+          },
+          teams: [
+            { name: matchState.setup.teamA.name, players: matchState.setup.teamA.players },
+            { name: matchState.setup.teamB.name, players: matchState.setup.teamB.players }
+          ],
+          innings: buildInningsData()
+        };
+
+        const response = await fetch('api/matches.php?action=save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: matchState.saveId, payload: payload })
+        });
+
+        const result = await response.json();
+        
+        if (result.ok) {
+          matchState.saveId = result.id;
+          
+          // Store complete match data in localStorage for summary page
+          localStorage.setItem('stumpvision_completed_match', JSON.stringify({
+            saveId: result.id,
+            payload: payload
+          }));
+
+          // Show completion message
+          alert('🏆 Match Complete!\n\nMatch saved successfully. Redirecting to summary...');
+          
+          // Redirect to summary page
+          window.location.href = 'summary.php';
+        } else {
+          alert('Match complete but save failed. Showing stats anyway...');
+          showTab('stats');
+        }
+      } catch (err) {
+        console.error('Error saving match:', err);
+        alert('Match complete but save failed: ' + err.message);
+        showTab('stats');
+      }
+    }
+    
     // Initialize app
     init();
 

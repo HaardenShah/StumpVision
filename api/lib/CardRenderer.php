@@ -13,7 +13,7 @@ use RuntimeException;
 require_once __DIR__ . '/Util.php';
 
 /**
- * CardRenderer - Generate premium gradient share cards
+ * CardRenderer - Generate premium gradient share cards (FIXED VERSION)
  */
 final class CardRenderer
 {
@@ -58,16 +58,22 @@ final class CardRenderer
             $teamBName = Util::safeStr($teams[1]['name'], 'Team B');
         }
 
+        // Get balls per over from meta
+        $ballsPerOver = 6;
+        if (isset($meta['ballsPerOver'])) {
+            $ballsPerOver = Util::safeInt($meta['ballsPerOver'], 6);
+        }
+
         // Get scores
-        [$aRuns, $aWkts, $aOvers] = self::summaryFor(0, $inns, 6);
-        [$bRuns, $bWkts, $bOvers] = self::summaryFor(1, $inns, 6);
+        [$aRuns, $aWkts, $aOvers] = self::summaryFor(0, $inns, $ballsPerOver);
+        [$bRuns, $bWkts, $bOvers] = self::summaryFor(1, $inns, $ballsPerOver);
 
         // Determine winner
         $winner = self::determineWinner($aRuns, $bRuns, $aWkts, $bWkts, $teamAName, $teamBName);
 
-        // Get top performers
-        $topBat = self::topBatter(isset($inns[0]) && is_array($inns[0]) ? $inns[0] : []);
-        $topBowl = self::topBowler(isset($inns[0]) && is_array($inns[0]) ? $inns[0] : []);
+        // Get top performers from BOTH innings
+        $topBat = self::topBatterFromAllInnings($inns);
+        $topBowl = self::topBowlerFromAllInnings($inns);
 
         $coverPng = $cardsDir . DIRECTORY_SEPARATOR . $baseName . '-card.png';
 
@@ -75,33 +81,33 @@ final class CardRenderer
             // Create 1080x1920 card (Instagram Story size)
             $card = self::createGradientCanvas();
             
-            // Add glassmorphism card overlay
-            self::addGlassCard($card, 60, 180, 960, 1560);
+            // Add glassmorphism card overlay - TALLER to fill space
+            self::addGlassCard($card, 60, 180, 960, 1600);
             
             // Header - StumpVision branding
-            self::text($card, 'STUMPVISION', 540.0, 120.0, 32, '#ffffff', 'center', 800);
-            self::text($card, 'MATCH SCORECARD', 540.0, 160.0, 20, 'rgba(255,255,255,0.7)', 'center', 400);
+            self::text($card, 'STUMPVISION', 540.0, 100.0, 32, '#ffffff', 'center', 800);
+            self::text($card, 'MATCH SCORECARD', 540.0, 140.0, 20, 'rgba(255,255,255,0.7)', 'center', 400);
             
             // Team A Score - Large and prominent
-            self::addTeamSection($card, $teamAName, $aRuns, $aWkts, $aOvers, 260);
+            self::addTeamSection($card, $teamAName, $aRuns, $aWkts, $aOvers, 220);
             
-            // VS divider with match info
-            self::text($card, 'VS', 540.0, 520.0, 28, 'rgba(255,255,255,0.5)', 'center', 600);
+            // VS divider with match info - MOVED UP
+            self::text($card, 'VS', 540.0, 450.0, 28, 'rgba(255,255,255,0.5)', 'center', 600);
             $oversPerSide = 20;
             if (isset($meta['oversPerSide'])) {
                 $oversPerSide = Util::safeInt($meta['oversPerSide'], 20);
             }
-            $matchInfo = (string)$oversPerSide . ' OVERS';
-            self::text($card, $matchInfo, 540.0, 560.0, 16, 'rgba(255,255,255,0.4)', 'center', 400);
+            $matchInfo = (string)$oversPerSide . ' OVERS PER SIDE';
+            self::text($card, $matchInfo, 540.0, 490.0, 16, 'rgba(255,255,255,0.4)', 'center', 400);
             
-            // Team B Score
-            self::addTeamSection($card, $teamBName, $bRuns, $bWkts, $bOvers, 640);
+            // Team B Score - MOVED UP
+            self::addTeamSection($card, $teamBName, $bRuns, $bWkts, $bOvers, 560);
             
-            // Winner banner with gradient
-            self::addWinnerBanner($card, $winner, 1040);
+            // Winner banner with gradient - MOVED UP
+            self::addWinnerBanner($card, $winner, 790);
             
-            // Top Performers section
-            self::addPerformersSection($card, $topBat, $topBowl, 1180);
+            // Top Performers section - MOVED UP and LARGER
+            self::addPerformersSection($card, $topBat, $topBowl, 920);
             
             // Footer - Clean and minimal
             self::text($card, 'Powered by StumpVision', 540.0, 1840.0, 18, 'rgba(255,255,255,0.4)', 'center', 400);
@@ -232,8 +238,9 @@ final class CardRenderer
         self::text($im, 'TOP PERFORMERS', 540.0, (float)$y, 18, 'rgba(255,255,255,0.5)', 'center', 600);
         
         $batY = $y + 60;
-        self::addPerformerCard($im, 180, $batY, 380, 180, '🏏 BATTING', $topBat);
-        self::addPerformerCard($im, 600, $batY, 380, 180, '⚡ BOWLING', $topBowl);
+        // LARGER cards with more vertical space
+        self::addPerformerCard($im, 140, $batY, 380, 220, '🏏 BATTING', $topBat);
+        self::addPerformerCard($im, 560, $batY, 380, 220, '⚡ BOWLING', $topBowl);
     }
 
     /**
@@ -264,25 +271,29 @@ final class CardRenderer
         $name = Util::safeStr($stats['name'] ?? '—', '—');
         self::text($im, $name, (float)$centerX, (float)($y + 75), 22, '#ffffff', 'center', 700);
         
+        // Check if this is batting stats (has 'runs' key)
         if (isset($stats['runs'])) {
+            // BATTING STATS
             $runs = Util::safeInt($stats['runs'], 0);
             $balls = Util::safeInt($stats['balls'], 0);
             $statLine = (string)$runs . ' (' . (string)$balls . ')';
-            self::text($im, $statLine, (float)$centerX, (float)($y + 115), 28, '#22d3ee', 'center', 800);
+            self::text($im, $statLine, (float)$centerX, (float)($y + 125), 32, '#22d3ee', 'center', 800);
             
             $fours = Util::safeInt($stats['fours'] ?? 0, 0);
             $sixes = Util::safeInt($stats['sixes'] ?? 0, 0);
             $boundaries = (string)$fours . '×4  ' . (string)$sixes . '×6';
-            self::text($im, $boundaries, (float)$centerX, (float)($y + 145), 16, 'rgba(255,255,255,0.6)', 'center', 400);
+            self::text($im, $boundaries, (float)$centerX, (float)($y + 165), 18, 'rgba(255,255,255,0.6)', 'center', 400);
         } else {
+            // BOWLING STATS
             $wickets = Util::safeInt($stats['wickets'] ?? 0, 0);
             $runs = Util::safeInt($stats['runs'] ?? 0, 0);
             $statLine = (string)$wickets . '/' . (string)$runs;
-            self::text($im, $statLine, (float)$centerX, (float)($y + 115), 28, '#22d3ee', 'center', 800);
+            self::text($im, $statLine, (float)$centerX, (float)($y + 125), 32, '#22d3ee', 'center', 800);
             
             $balls = Util::safeInt($stats['balls'] ?? 0, 0);
             $overs = (string)((int)floor($balls / 6)) . '.' . (string)($balls % 6);
-            self::text($im, $overs . ' OVERS', (float)$centerX, (float)($y + 145), 16, 'rgba(255,255,255,0.6)', 'center', 400);
+            $economy = $balls > 0 ? number_format(($runs / $balls) * 6, 2) : '0.00';
+            self::text($im, $overs . ' OV  ' . $economy . ' ECON', (float)$centerX, (float)($y + 165), 18, 'rgba(255,255,255,0.6)', 'center', 400);
         }
     }
 
@@ -356,7 +367,92 @@ final class CardRenderer
     }
 
     /**
-     * Get top batter from innings
+     * Get top batter from ALL innings
+     *
+     * @param array<int, mixed> $innings All innings data
+     * @return array<string, mixed> Top batter stats
+     */
+    private static function topBatterFromAllInnings(array $innings): array
+    {
+        $top = ['name' => '—', 'runs' => 0, 'balls' => 0, 'fours' => 0, 'sixes' => 0];
+        
+        foreach ($innings as $inn) {
+            if (!is_array($inn)) {
+                continue;
+            }
+            
+            $rows = [];
+            if (isset($inn['batStats']) && is_array($inn['batStats'])) {
+                $rows = $inn['batStats'];
+            }
+            
+            foreach ($rows as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                
+                $rowRuns = Util::safeInt($row['runs'] ?? 0, 0);
+                
+                if ($rowRuns > $top['runs']) {
+                    $top = [
+                        'name' => Util::safeStr($row['name'] ?? '—', '—'),
+                        'runs' => $rowRuns,
+                        'balls' => Util::safeInt($row['balls'] ?? 0, 0),
+                        'fours' => Util::safeInt($row['fours'] ?? 0, 0),
+                        'sixes' => Util::safeInt($row['sixes'] ?? 0, 0),
+                    ];
+                }
+            }
+        }
+        
+        return $top;
+    }
+
+    /**
+     * Get top bowler from ALL innings
+     *
+     * @param array<int, mixed> $innings All innings data
+     * @return array<string, mixed> Top bowler stats
+     */
+    private static function topBowlerFromAllInnings(array $innings): array
+    {
+        $top = ['name' => '—', 'wickets' => 0, 'runs' => 999999, 'balls' => 0];
+        
+        foreach ($innings as $inn) {
+            if (!is_array($inn)) {
+                continue;
+            }
+            
+            $rows = [];
+            if (isset($inn['bowlStats']) && is_array($inn['bowlStats'])) {
+                $rows = $inn['bowlStats'];
+            }
+            
+            foreach ($rows as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                
+                $w = Util::safeInt($row['wickets'] ?? 0, 0);
+                $r = Util::safeInt($row['runs'] ?? 0, 0);
+                
+                // Better bowler = more wickets OR same wickets but fewer runs
+                if ($w > $top['wickets'] || ($w === $top['wickets'] && $w > 0 && $r < $top['runs'])) {
+                    $top = [
+                        'name' => Util::safeStr($row['name'] ?? '—', '—'),
+                        'wickets' => $w,
+                        'runs' => $r,
+                        'balls' => Util::safeInt($row['balls'] ?? 0, 0),
+                    ];
+                }
+            }
+        }
+        
+        return $top;
+    }
+
+    /**
+     * Get top batter from innings (DEPRECATED - use topBatterFromAllInnings)
      *
      * @param array<string, mixed> $inn Innings data
      * @return array<string, mixed> Top batter stats
@@ -392,7 +488,7 @@ final class CardRenderer
     }
 
     /**
-     * Get top bowler from innings
+     * Get top bowler from innings (DEPRECATED - use topBowlerFromAllInnings)
      *
      * @param array<string, mixed> $inn Innings data
      * @return array<string, mixed> Top bowler stats
