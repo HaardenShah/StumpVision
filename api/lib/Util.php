@@ -36,6 +36,46 @@ final class Util
     }
 
     /**
+     * Find executable in PATH (Unix/Linux)
+     * @param string $command Command name to find
+     * @return string|null Full path to executable or null if not found
+     */
+    public static function which(string $command): ?string
+    {
+        // Security: sanitize command name
+        $command = preg_replace('/[^a-zA-Z0-9_-]/', '', $command);
+        if (empty($command)) {
+            return null;
+        }
+
+        // Try using 'which' command (Unix/Linux)
+        $output = @shell_exec("which " . escapeshellarg($command) . " 2>/dev/null");
+        if ($output && trim($output)) {
+            $path = trim($output);
+            if (is_executable($path)) {
+                return $path;
+            }
+        }
+
+        // Fallback: check common paths
+        $commonPaths = [
+            '/usr/bin/',
+            '/usr/local/bin/',
+            '/opt/homebrew/bin/',
+            '/bin/'
+        ];
+
+        foreach ($commonPaths as $dir) {
+            $fullPath = $dir . $command;
+            if (is_executable($fullPath)) {
+                return $fullPath;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Get project directories
      * Returns: [rootDir, dataDir, cardsDir]
      */
