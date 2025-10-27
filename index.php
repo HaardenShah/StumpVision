@@ -304,6 +304,11 @@
       }
     }
 
+    function getBallEmoji() {
+      const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      return isDark ? '\u26AA' : '\u26AB';  // ⚪ dark, ⚫ light
+    }
+
     let matchState = {
       setup: null,
       innings: 1,
@@ -415,7 +420,7 @@
       }
       
       // Add to over display
-      matchState.thisOver.push(runs === 0 ? '•' : runs.toString());
+      matchState.thisOver.push(runs === 0 ? getBallEmoji() : runs.toString());
       
       // Check for over completion
       if (matchState.balls === 6) {
@@ -1118,7 +1123,7 @@
         showTab('stats');
       }
     }
-    
+
     // Initialize app
     init();
 
