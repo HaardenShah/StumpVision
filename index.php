@@ -2,8 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
   <title>StumpVision - Live Match</title>
@@ -39,7 +42,19 @@
       }
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+    body { 
+      font-family: system-ui, -apple-system, sans-serif; 
+      background: var(--bg); 
+      color: var(--ink); 
+      line-height: 1.5; 
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+    }
     .header { position: sticky; top: 0; z-index: 100; background: var(--card); border-bottom: 2px solid var(--line); box-shadow: 0 2px 8px var(--shadow); }
     .header-top { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; }
     .brand { font-size: 20px; font-weight: 800; }
@@ -52,8 +67,9 @@
     .tabs { display: flex; background: var(--card); border-bottom: 2px solid var(--line); }
     .tab { flex: 1; padding: 14px 16px; border: none; background: none; color: var(--muted); font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; }
     .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-    .tab-content { display: none; padding: 16px; padding-bottom: 180px; }
+    .tab-content { display: none; padding: 16px; padding-bottom: 180px; overflow-y: auto; max-height: calc(100vh - 280px); }
     .tab-content.active { display: block; }
+    .tab-content.no-dock { padding-bottom: 16px; }
     .current-players { background: var(--card); border: 2px solid var(--line); border-radius: 16px; padding: 16px; margin-bottom: 16px; }
     .player-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); }
     .player-row:last-child { border-bottom: none; }
@@ -62,6 +78,7 @@
     .striker-badge { background: var(--accent-light); color: var(--accent); padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 700; margin-left: 8px; }
     .retired-badge { background: var(--muted); color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 700; margin-left: 8px; }
     .scoring-dock { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 2px solid var(--line); padding: 12px; box-shadow: 0 -4px 20px var(--shadow); z-index: 50; }
+    .scoring-dock.hidden { display: none; }
     .pad-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; max-width: 800px; margin: 0 auto; }
     @media (max-width: 640px) { .pad-grid { grid-template-columns: repeat(4, 1fr); } }
     .pad-btn { background: var(--card); border: 2px solid var(--line); color: var(--ink); padding: 16px 8px; border-radius: 12px; font-size: 20px; font-weight: 800; cursor: pointer; min-height: 56px; }
@@ -157,35 +174,84 @@
     </div>
   </div>
 
-  <div id="statsTab" class="tab-content">
+  <div id="statsTab" class="tab-content no-dock">
+    <div class="stats-table">
+      <div class="stats-title">Match Summary</div>
+      <table>
+        <tbody>
+          <tr><td><strong>Current Score</strong></td><td id="statCurrentScore">0/0</td></tr>
+          <tr><td><strong>Run Rate</strong></td><td id="statRunRate">0.00</td></tr>
+          <tr><td><strong>Projected Score</strong></td><td id="statProjected">0</td></tr>
+          <tr><td><strong>Overs Remaining</strong></td><td id="statOversRemaining">0.0</td></tr>
+        </tbody>
+      </table>
+    </div>
+
     <div class="stats-table">
       <div class="stats-title">Batting Stats</div>
       <table>
-        <thead><tr><th>Player</th><th>R</th><th>B</th><th>4s</th><th>6s</th><th>SR</th><th>Out</th></tr></thead>
+        <thead><tr><th>Player</th><th>R</th><th>B</th><th>4s</th><th>6s</th><th>SR</th><th>Status</th></tr></thead>
         <tbody id="battingStats"></tbody>
       </table>
     </div>
+
+    <div class="stats-table">
+      <div class="stats-title">Partnerships</div>
+      <table>
+        <thead><tr><th>Wicket</th><th>Runs</th><th>Balls</th><th>Partners</th></tr></thead>
+        <tbody id="partnershipStats"></tbody>
+      </table>
+    </div>
+
     <div class="stats-table">
       <div class="stats-title">Bowling Stats</div>
       <table>
-        <thead><tr><th>Player</th><th>O</th><th>R</th><th>W</th><th>Econ</th></tr></thead>
+        <thead><tr><th>Player</th><th>O</th><th>M</th><th>R</th><th>W</th><th>Econ</th><th>Dots</th></tr></thead>
         <tbody id="bowlingStats"></tbody>
       </table>
     </div>
+
     <div class="stats-table">
-      <div class="stats-title">Extras</div>
+      <div class="stats-title">Extras Breakdown</div>
       <table>
         <tbody>
           <tr><td>No Balls</td><td id="nbCount">0</td></tr>
           <tr><td>Wides</td><td id="wdCount">0</td></tr>
           <tr><td>Byes</td><td id="bCount">0</td></tr>
           <tr><td>Leg Byes</td><td id="lbCount">0</td></tr>
+          <tr><td><strong>Total Extras</strong></td><td id="totalExtras"><strong>0</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="stats-table">
+      <div class="stats-title">Scoring Rate by Overs</div>
+      <table>
+        <thead><tr><th>Phase</th><th>Overs</th><th>Runs</th><th>RR</th><th>Wkts</th></tr></thead>
+        <tbody id="overPhaseStats"></tbody>
+      </table>
+    </div>
+
+    <div class="stats-table">
+      <div class="stats-title">Key Milestones</div>
+      <table>
+        <tbody id="milestoneStats">
+          <tr><td colspan="2" style="text-align: center; color: var(--muted);">No milestones yet</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="stats-table">
+      <div class="stats-title">Fall of Wickets</div>
+      <table>
+        <tbody id="wicketFall">
+          <tr><td colspan="2" style="text-align: center; color: var(--muted);">No wickets fallen</td></tr>
         </tbody>
       </table>
     </div>
   </div>
 
-  <div id="settingsTab" class="tab-content">
+  <div id="settingsTab" class="tab-content no-dock">
     <div class="settings-panel">
       <div class="settings-item">
         <h3>Match Info</h3>
@@ -222,7 +288,7 @@
     </div>
   </div>
 
-  <div class="scoring-dock">
+  <div class="scoring-dock" id="scoringDock">
     <div class="pad-grid">
       <button class="pad-btn" onclick="recordBall(0)">0</button>
       <button class="pad-btn" onclick="recordBall(1)">1</button>
@@ -416,7 +482,11 @@
       firstInningsScore: null,
       saveId: null,
       pendingOverComplete: false,
-      runOutVictim: null
+      runOutVictim: null,
+      partnerships: [],
+      currentPartnership: { runs: 0, balls: 0, batsman1: null, batsman2: null },
+      wicketsFallen: [],
+      milestones: []
     };
 
     function addToBallHistory(entry) {
@@ -448,11 +518,11 @@
       
       matchState.setup.teamA.players.forEach(p => {
         matchState.batsmen[p] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false, outType: null, retired: false };
-        matchState.bowlers[p] = { overs: 0, balls: 0, runs: 0, wickets: 0 };
+        matchState.bowlers[p] = { overs: 0, balls: 0, runs: 0, wickets: 0, maidens: 0, dots: 0 };
       });
       matchState.setup.teamB.players.forEach(p => {
         matchState.batsmen[p] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false, outType: null, retired: false };
-        matchState.bowlers[p] = { overs: 0, balls: 0, runs: 0, wickets: 0 };
+        matchState.bowlers[p] = { overs: 0, balls: 0, runs: 0, wickets: 0, maidens: 0, dots: 0 };
       });
       
       promptStartingPlayers();
@@ -473,6 +543,15 @@
         matchState.nonStriker = battingPlayers[1];
         matchState.bowler = bowlingPlayers[0];
       }
+      
+      // Initialize first partnership
+      matchState.currentPartnership = {
+        runs: 0,
+        balls: 0,
+        batsman1: matchState.striker,
+        batsman2: matchState.nonStriker
+      };
+      
       console.log('Starting players:', { striker: matchState.striker, nonStriker: matchState.nonStriker, bowler: matchState.bowler });
     }
 
@@ -485,16 +564,30 @@
       
       haptic(runs === 4 || runs === 6 ? 'success' : 'light');
       
+      // Track dot ball
+      if (runs === 0) {
+        matchState.bowlers[matchState.bowler].dots += 1;
+      }
+      
+      // Update batsman stats
+      const previousRuns = matchState.batsmen[matchState.striker].runs;
       matchState.batsmen[matchState.striker].runs += runs;
       matchState.batsmen[matchState.striker].balls += 1;
       if (runs === 4) matchState.batsmen[matchState.striker].fours += 1;
       if (runs === 6) matchState.batsmen[matchState.striker].sixes += 1;
+      
+      // Check for milestones (50, 100)
+      checkMilestone(matchState.striker, previousRuns, matchState.batsmen[matchState.striker].runs);
       
       matchState.bowlers[matchState.bowler].runs += runs;
       matchState.bowlers[matchState.bowler].balls += 1;
       
       matchState.score.runs += runs;
       matchState.balls += 1;
+      
+      // Update partnership
+      matchState.currentPartnership.runs += runs;
+      matchState.currentPartnership.balls += 1;
       
       if (runs % 2 === 1) {
         [matchState.striker, matchState.nonStriker] = [matchState.nonStriker, matchState.striker];
@@ -766,6 +859,23 @@
       matchState.score.wickets += 1;
       matchState.balls += 1;
       
+      // Update partnership
+      matchState.currentPartnership.balls += 1;
+      
+      // Record fall of wicket
+      const totalOvers = matchState.overs + (matchState.balls / 6);
+      matchState.wicketsFallen.push({
+        score: matchState.score.runs,
+        player: matchState.striker,
+        runs: matchState.batsmen[matchState.striker].runs,
+        over: totalOvers.toFixed(1)
+      });
+      
+      // Save partnership and start new one
+      if (matchState.currentPartnership.batsman1 && matchState.currentPartnership.batsman2) {
+        matchState.partnerships.push({...matchState.currentPartnership});
+      }
+      
       matchState.thisOver.push('W');
       
       // Reset free hit after wicket
@@ -860,6 +970,14 @@
           // Regular wicket - striker got out
           matchState.striker = newBatsman;
         }
+        
+        // Start new partnership
+        matchState.currentPartnership = {
+          runs: 0,
+          balls: 0,
+          batsman1: matchState.striker,
+          batsman2: matchState.nonStriker
+        };
         
         closeModal('batsmanModal');
         document.getElementById('batsmanModalTitle').textContent = 'New Batsman';
@@ -1096,23 +1214,43 @@
     }
 
     function updateStatsTable() {
+      // Match Summary
+      document.getElementById('statCurrentScore').textContent = `${matchState.score.runs}/${matchState.score.wickets}`;
+      const totalOvers = matchState.overs + (matchState.balls / 6);
+      const runRate = totalOvers > 0 ? (matchState.score.runs / totalOvers).toFixed(2) : '0.00';
+      document.getElementById('statRunRate').textContent = runRate;
+      
+      const oversRemaining = matchState.setup.oversPerInnings - totalOvers;
+      document.getElementById('statOversRemaining').textContent = oversRemaining.toFixed(1);
+      
+      const projected = totalOvers > 0 ? Math.round((matchState.score.runs / totalOvers) * matchState.setup.oversPerInnings) : 0;
+      document.getElementById('statProjected').textContent = projected;
+      
+      // Batting Stats
       const battingStatsEl = document.getElementById('battingStats');
       const battingPlayers = matchState.setup[matchState.battingTeam].players;
       
       battingStatsEl.innerHTML = battingPlayers.map(p => {
         const stats = matchState.batsmen[p];
-        if (!stats) return '';
-        const sr = stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(2) : '0.00';
+        if (!stats || (stats.balls === 0 && !stats.out && !stats.retired)) return '';
+        const sr = stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : '-';
         let status = '';
         if (stats.retired) {
-          status = ' (retired)';
+          status = 'ret';
+        } else if (stats.out) {
+          status = stats.outType || 'out';
         } else if (p === matchState.striker || p === matchState.nonStriker) {
-          status = ' (batting)';
+          status = 'batting*';
+        } else {
+          status = '-';
         }
-        const outInfo = stats.out ? stats.outType || 'out' : (status ? '' : '-');
-        return `<tr><td>${p}${status}</td><td>${stats.runs}</td><td>${stats.balls}</td><td>${stats.fours}</td><td>${stats.sixes}</td><td>${sr}</td><td>${outInfo}</td></tr>`;
-      }).join('');
+        return `<tr><td>${p}</td><td><strong>${stats.runs}</strong></td><td>${stats.balls}</td><td>${stats.fours}</td><td>${stats.sixes}</td><td>${sr}</td><td>${status}</td></tr>`;
+      }).filter(row => row).join('');
       
+      // Partnerships
+      updatePartnershipStats();
+      
+      // Bowling Stats
       const bowlingStatsEl = document.getElementById('bowlingStats');
       const bowlingPlayers = matchState.setup[matchState.bowlingTeam].players;
       
@@ -1123,13 +1261,115 @@
           const overs = `${Math.floor(stats.balls / 6)}.${stats.balls % 6}`;
           const totalOvers = stats.balls / 6;
           const econ = totalOvers > 0 ? (stats.runs / totalOvers).toFixed(2) : '0.00';
-          return `<tr><td>${p}</td><td>${overs}</td><td>${stats.runs}</td><td>${stats.wickets}</td><td>${econ}</td></tr>`;
+          const maidens = stats.maidens || 0;
+          const dots = stats.dots || 0;
+          return `<tr><td>${p}</td><td>${overs}</td><td>${maidens}</td><td>${stats.runs}</td><td><strong>${stats.wickets}</strong></td><td>${econ}</td><td>${dots}</td></tr>`;
         }).join('');
       
+      // Extras
+      const totalExtras = matchState.extras.nb + matchState.extras.wd + matchState.extras.b + matchState.extras.lb;
       document.getElementById('nbCount').textContent = matchState.extras.nb;
       document.getElementById('wdCount').textContent = matchState.extras.wd;
       document.getElementById('bCount').textContent = matchState.extras.b;
       document.getElementById('lbCount').textContent = matchState.extras.lb;
+      document.getElementById('totalExtras').textContent = totalExtras;
+      
+      // Over phases
+      updateOverPhases();
+      
+      // Milestones
+      updateMilestones();
+      
+      // Fall of Wickets
+      updateWicketFall();
+    }
+    
+    function updatePartnershipStats() {
+      const partnershipEl = document.getElementById('partnershipStats');
+      
+      // Show completed partnerships + current partnership
+      let html = '';
+      
+      matchState.partnerships.forEach((p, idx) => {
+        html += `<tr><td>${idx + 1}</td><td><strong>${p.runs}</strong></td><td>${p.balls}</td><td>${p.batsman1} & ${p.batsman2}</td></tr>`;
+      });
+      
+      // Current partnership
+      if (matchState.currentPartnership.batsman1 && matchState.currentPartnership.batsman2) {
+        html += `<tr style="background: var(--accent-light);"><td>Current</td><td><strong>${matchState.currentPartnership.runs}</strong></td><td>${matchState.currentPartnership.balls}</td><td>${matchState.currentPartnership.batsman1} & ${matchState.currentPartnership.batsman2}</td></tr>`;
+      }
+      
+      partnershipEl.innerHTML = html || '<tr><td colspan="4" style="text-align: center; color: var(--muted);">No partnerships yet</td></tr>';
+    }
+    
+    function updateOverPhases() {
+      const phaseEl = document.getElementById('overPhaseStats');
+      const phases = [];
+      const totalOvers = matchState.overs + (matchState.balls / 6);
+      
+      // Powerplay (first 6 overs)
+      if (totalOvers > 0) {
+        const ppOvers = Math.min(6, totalOvers);
+        phases.push({ name: 'Powerplay', overs: `0-${ppOvers.toFixed(1)}`, runs: 0, wickets: 0 });
+      }
+      
+      // Middle (7-15)
+      if (totalOvers > 6) {
+        const midOvers = Math.min(15, totalOvers) - 6;
+        phases.push({ name: 'Middle', overs: `6-${(6 + midOvers).toFixed(1)}`, runs: 0, wickets: 0 });
+      }
+      
+      // Death (16+)
+      if (totalOvers > 15) {
+        const deathOvers = totalOvers - 15;
+        phases.push({ name: 'Death', overs: `15-${totalOvers.toFixed(1)}`, runs: 0, wickets: 0 });
+      }
+      
+      // For now, show phases without detailed breakdowns (would need ball-by-ball tracking)
+      phaseEl.innerHTML = phases.map(p => 
+        `<tr><td>${p.name}</td><td>${p.overs}</td><td>-</td><td>-</td><td>-</td></tr>`
+      ).join('') || '<tr><td colspan="5" style="text-align: center; color: var(--muted);">Not enough overs</td></tr>';
+    }
+    
+    function updateMilestones() {
+      const milestoneEl = document.getElementById('milestoneStats');
+      
+      if (matchState.milestones.length === 0) {
+        milestoneEl.innerHTML = '<tr><td colspan="2" style="text-align: center; color: var(--muted);">No milestones yet</td></tr>';
+        return;
+      }
+      
+      milestoneEl.innerHTML = matchState.milestones.map(m => 
+        `<tr><td>${m.player}</td><td><strong>${m.milestone} runs</strong> (${m.balls} balls)</td></tr>`
+      ).join('');
+    }
+    
+    function updateWicketFall() {
+      const wicketEl = document.getElementById('wicketFall');
+      
+      if (matchState.wicketsFallen.length === 0) {
+        wicketEl.innerHTML = '<tr><td colspan="2" style="text-align: center; color: var(--muted);">No wickets fallen</td></tr>';
+        return;
+      }
+      
+      wicketEl.innerHTML = matchState.wicketsFallen.map((w, idx) => 
+        `<tr><td><strong>${w.score}/${idx + 1}</strong></td><td>${w.player} (${w.runs}) - ${w.over} ov</td></tr>`
+      ).join('');
+    }
+    
+    function checkMilestone(player, previousRuns, currentRuns) {
+      const milestones = [50, 100, 150, 200];
+      
+      for (const milestone of milestones) {
+        if (previousRuns < milestone && currentRuns >= milestone) {
+          const balls = matchState.batsmen[player].balls;
+          matchState.milestones.push({
+            player: player,
+            milestone: milestone,
+            balls: balls
+          });
+        }
+      }
     }
 
     function updateSettings() {
@@ -1261,6 +1501,14 @@
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
       document.querySelector(`[onclick="showTab('${tab}')"]`).classList.add('active');
       document.getElementById(`${tab}Tab`).classList.add('active');
+      
+      // Hide scoring dock on Stats and Settings tabs
+      const scoringDock = document.getElementById('scoringDock');
+      if (tab === 'score') {
+        scoringDock.classList.remove('hidden');
+      } else {
+        scoringDock.classList.add('hidden');
+      }
     }
 
     function closeModal(modalId) {
