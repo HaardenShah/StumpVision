@@ -10,11 +10,22 @@ Perfect for pickup cricket, club matches, and growing your cricket community! �
 
 ### Core Scoring
 ✅ **Simple scoring pad** - Record runs, boundaries, wickets, extras with one tap  
+✅ **Wicket type tracking** - Record dismissal type (bowled, caught, LBW, stumped, run out, hit wicket)  
+✅ **Smart run-out logic** - Track runs completed and which batsman got out  
 ✅ **Smart cricket logic** - No-balls trigger free hits, auto-advance overs after 6 legal balls  
-✅ **Extras tracking** - NB, WD, Byes, Leg Byes tracked separately  
-✅ **Comprehensive stats** - Strike rates, economy rates, balls faced, overs bowled  
+✅ **Extras tracking** - NB, WD, Byes, Leg Byes tracked separately with proper wide ball handling  
+✅ **Comprehensive stats** - Strike rates, economy rates, balls faced, overs bowled, dot balls, maidens  
 ✅ **Ball-by-ball tracking** - Complete delivery history with undo support  
 ✅ **Target tracker** - Real-time chase calculations in 2nd innings  
+✅ **Partnership tracking** - Monitor current and historical partnerships with runs and balls  
+✅ **Fall of wickets** - Track when and how each wicket fell  
+✅ **Milestones** - Automatic detection of 50s, 100s, 150s, 200s  
+
+### Match Management
+✅ **Mid-innings player management** - Add, remove, or retire players during the match  
+✅ **Dynamic match settings** - Adjust overs and wickets limit on the fly  
+✅ **Retire/unretire batsmen** - Players can retire and return later with stats intact  
+✅ **Player stats retention** - Retired players keep their scores when they return  
 
 ### Match Setup
 ✅ **Toss configuration** - Select who won toss and batting/bowling choice  
@@ -23,12 +34,14 @@ Perfect for pickup cricket, club matches, and growing your cricket community! �
 ✅ **Match settings** - Overs per innings, wickets limit, match format  
 
 ### Mobile Experience
-✅ **Sunlight-optimized UI** - High contrast design for outdoor visibility  
+✅ **Sunlight-optimized UI** - High contrast white text on dark buttons for outdoor visibility  
 ✅ **Auto dark mode** - Respects system preference  
 ✅ **Haptic feedback** - Vibration on scoring actions  
 ✅ **Touch-optimized** - Large buttons (48px+ tap targets)  
 ✅ **PWA installable** - Add to home screen, works like native app  
 ✅ **Offline-first** - Score matches without internet  
+✅ **Smart UI** - Scoring dock hidden on Stats/Settings for full content visibility  
+✅ **Fullscreen mode** - True fullscreen on mobile devices  
 
 ### Social Sharing
 ✅ **Save to server** - Persistent match storage with unique IDs  
@@ -82,13 +95,29 @@ Perfect for **growing your cricket club** through viral social sharing! 📱✨
 
 ### 2. Score the Match
 - **Tap scoring buttons** to record deliveries
+- **Select wicket type** when recording dismissals
+- **Run outs** - Specify runs completed and who got out
 - **Swap Strike** if batsmen cross
+- **Retire Batsman** to let others play (can return later)
 - **Undo** if you make a mistake
-- **View Stats** tab for live statistics
+- **View Stats** tab for comprehensive live statistics
 - Overs auto-complete after 6 legal balls
 - Select new bowler when prompted
 
-### 3. Save & Share
+### 3. Manage Players Mid-Match
+1. Go to **Settings** tab
+2. Click **"Manage Players"**
+3. Add new players to either team
+4. Remove inactive players
+5. Unretire players to bring them back
+
+### 4. Adjust Match Settings
+1. Go to **Settings** tab
+2. Update **Overs per innings** (1-50)
+3. Update **Wickets limit** (1-11)
+4. Changes apply immediately
+
+### 5. Save & Share
 1. Go to **Settings** tab
 2. Click **"Save Match"** (generates unique ID)
 3. Click **"Share Score Card"** (creates beautiful graphic)
@@ -102,12 +131,57 @@ Perfect for **growing your cricket club** through viral social sharing! 📱✨
 |----------------|-------------------------------------------------------------|
 | **0-6 runs**   | Adds to batter & team; odd runs swap strike                 |
 | **4 / 6**      | Boundary tracked separately in stats                        |
-| **Wicket**     | Prompt for new batter; ends innings if all out             |
+| **Wicket**     | Select dismissal type; prompt for new batter               |
+| **Run Out**    | Specify runs completed and which batsman got out            |
 | **No Ball**    | +1 extra + bat runs; next ball is FREE HIT                  |
-| **Wide**       | +1 (or more) to extras; ball doesn't count                  |
+| **Wide**       | +1 wide (+ additional runs from overthrows/running)         |
 | **Bye/Leg Bye**| Runs to extras; counts as legal ball                        |
 | **Free Hit**   | No wicket possible (except run out)                         |
+| **Retire**     | Batsman leaves but can return with stats intact             |
 | **Undo**       | Reverts last ball completely                                |
+
+### Wicket Types Tracked
+- **Bowled** - Stumps hit by ball
+- **Caught** - Ball caught by fielder
+- **LBW** - Leg Before Wicket
+- **Stumped** - Keeper removes bails while batsman out of crease
+- **Run Out** - Batsman out of crease when stumps broken (includes runs scored)
+- **Hit Wicket** - Batsman breaks own stumps
+
+---
+
+## 📊 Enhanced Statistics
+
+### Match Summary
+- Current score and run rate
+- Projected final score
+- Overs remaining
+- Real-time chase calculations (2nd innings)
+
+### Batting Statistics
+- Runs, balls, fours, sixes, strike rate
+- Dismissal type for each batsman
+- Current batting partnership details
+- Historical partnerships with runs and balls
+- Player milestones (50s, 100s, 150s, 200s)
+- Fall of wickets timeline
+
+### Bowling Statistics
+- Overs, maidens, runs, wickets, economy
+- Dot balls bowled
+- Best bowling figures
+- Current over analysis
+
+### Extras Breakdown
+- No Balls, Wides, Byes, Leg Byes
+- Total extras count
+- Extras percentage
+
+### Advanced Analytics
+- Scoring rate by phase (Powerplay, Middle, Death)
+- Partnership breakdowns
+- Milestone achievements
+- Wicket progression
 
 ---
 
@@ -182,6 +256,16 @@ Customize in `api/lib/CardRenderer.php`:
 - Enable vibration in phone settings
 - Must be on HTTPS
 
+### Stats not updating
+- Hard refresh the page (pull down on mobile)
+- Clear browser cache
+- Try incognito/private mode
+
+### Wicket modal not appearing
+- Check browser console for errors (F12)
+- Ensure striker and bowler are selected
+- Refresh page if stuck
+
 ---
 
 ## 🔐 Security
@@ -236,6 +320,8 @@ If you can't configure the web server:
 - **School/college tournaments** with shareable results
 - **Social media content** that attracts new members
 - **Growing cricket awareness** through viral sharing
+- **Players who arrive late** - add them mid-match seamlessly
+- **Flexible team sizes** - manage players dynamically
 
 **Share beautiful scorecards, grow your club!** 🚀📱
 
@@ -258,12 +344,18 @@ Designed for pickup cricket players who want:
 - Beautiful shareable cards
 - Works anywhere (even without internet)
 - Zero learning curve
+- Professional-level statistics
 
 **Tech Philosophy:**
 - No frameworks, no bloat
 - Vanilla JavaScript = fast & reliable
 - Progressive enhancement
 - Mobile-first design
+- Real cricket rules implemented correctly
+
+**Special Thanks:**
+- Cricket community for testing and feedback
+- Contributors who helped refine wicket logic and stats tracking
 
 ---
 
@@ -278,4 +370,27 @@ Need help? Check:
 
 ---
 
-*StumpVision v2 - Score fast. Share beautiful. Play cricket.* 🏏
+## 📝 Changelog
+
+### v2.1 (Latest)
+- ✨ Added wicket type tracking (6 dismissal types)
+- ✨ Smart run-out logic with runs and batsman selection
+- ✨ Mid-innings player management (add/remove/retire)
+- ✨ Dynamic overs and wickets adjustment
+- ✨ Comprehensive stats: partnerships, fall of wickets, milestones
+- ✨ Bowling analytics: dot balls and maidens tracking
+- 🎨 Improved sunlight visibility with white text on modals
+- 🎨 Smart UI: scoring dock hidden on Stats/Settings tabs
+- 🐛 Fixed wide ball logic (1 wide + additional runs)
+- 🐛 Fixed free hit + run out interaction
+- 📱 True fullscreen mobile support
+
+### v2.0
+- Initial release with core scoring features
+- PWA support and offline functionality
+- Premium share cards with gradient design
+- Basic match statistics
+
+---
+
+*StumpVision v2.1 - Score fast. Share beautiful. Play cricket.* 🏏
