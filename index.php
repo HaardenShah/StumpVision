@@ -79,9 +79,9 @@
     .modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); display: none; align-items: center; justify-content: center; z-index: 200; padding: 20px; }
     .modal.active { display: flex; }
     .modal-content { background: var(--card); border: 2px solid var(--line); border-radius: 20px; padding: 24px; max-width: 400px; width: 100%; max-height: 80vh; overflow-y: auto; }
-    .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+    .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; color: #ffffff; }
     .modal-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
-    .modal-btn { padding: 14px; background: var(--card); border: 2px solid var(--line); border-radius: 12px; font-weight: 700; cursor: pointer; }
+    .modal-btn { padding: 14px; background: var(--card); border: 2px solid var(--line); border-radius: 12px; font-weight: 800; font-size: 18px; color: #ffffff; cursor: pointer; }
     .modal-btn.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
     .btn-cancel { background: var(--danger-light); border: 2px solid var(--danger); color: var(--danger); padding: 12px; border-radius: 12px; font-weight: 600; cursor: pointer; width: 100%; }
     select.modal-select { width: 100%; padding: 12px; border: 2px solid var(--line); border-radius: 12px; background: var(--bg); color: var(--ink); font-size: 15px; margin-bottom: 16px; }
@@ -257,7 +257,9 @@
 
   <div id="wideModal" class="modal">
     <div class="modal-content">
-      <div class="modal-title">Wide - Total runs?</div>
+      <div class="modal-title">Wide Ball</div>
+      <p style="color: #ff6b6b; font-size: 14px; margin-bottom: 8px; font-weight: 700;">⚠️ If batsman hit it, use regular run buttons!</p>
+      <p style="color: #ffffff; font-size: 15px; margin-bottom: 12px; font-weight: 600;">Total runs (1 penalty + any runs/overthrows):</p>
       <div class="modal-buttons">
         <button class="modal-btn" onclick="processWide(1)">1</button>
         <button class="modal-btn" onclick="processWide(2)">2</button>
@@ -265,6 +267,7 @@
         <button class="modal-btn" onclick="processWide(4)">4</button>
         <button class="modal-btn" onclick="processWide(5)">5</button>
       </div>
+      <p style="color: #ffffff; font-size: 13px; margin-top: 8px; font-weight: 600;">Examples: Just wide = 1, Wide + 1 run = 2, Wide to boundary = 5</p>
       <button class="btn-cancel" onclick="closeModal('wideModal')">Cancel</button>
     </div>
   </div>
@@ -303,10 +306,30 @@
         <button class="modal-btn" onclick="selectWicketType('caught')">Caught</button>
         <button class="modal-btn" onclick="selectWicketType('lbw')">LBW</button>
         <button class="modal-btn" onclick="selectWicketType('stumped')">Stumped</button>
-        <button class="modal-btn" onclick="selectWicketType('runout')">Run Out</button>
+        <button class="modal-btn" onclick="showRunOutModal()">Run Out</button>
         <button class="modal-btn" onclick="selectWicketType('hitwicket')">Hit Wicket</button>
       </div>
       <button class="btn-cancel" onclick="closeModal('wicketModal')">Cancel</button>
+    </div>
+  </div>
+
+  <div id="runOutModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-title">Run Out - Runs completed?</div>
+      <div class="modal-buttons">
+        <button class="modal-btn" onclick="processRunOut(0)">0</button>
+        <button class="modal-btn" onclick="processRunOut(1)">1</button>
+        <button class="modal-btn" onclick="processRunOut(2)">2</button>
+        <button class="modal-btn" onclick="processRunOut(3)">3</button>
+      </div>
+      <div style="margin: 16px 0;">
+        <div style="font-weight: 700; font-size: 15px; margin-bottom: 8px; color: #ffffff;">Who got run out?</div>
+        <select id="runOutBatsmanSelect" class="modal-select">
+          <option value="striker">Striker</option>
+          <option value="nonStriker">Non-Striker</option>
+        </select>
+      </div>
+      <button class="btn-cancel" onclick="closeModal('runOutModal')">Cancel</button>
     </div>
   </div>
 
@@ -392,7 +415,8 @@
       ballHistory: [],
       firstInningsScore: null,
       saveId: null,
-      pendingOverComplete: false
+      pendingOverComplete: false,
+      runOutVictim: null
     };
 
     function addToBallHistory(entry) {
@@ -534,7 +558,7 @@
       
       matchState.bowlers[matchState.bowler].runs += totalRuns;
       matchState.score.runs += totalRuns;
-      matchState.extras.wd += totalRuns;
+      matchState.extras.wd += 1;  // Always count as 1 wide in extras
       matchState.thisOver.push(`${totalRuns}WD`);
       
       addToBallHistory({ type: 'wide', runs: totalRuns, bowler: matchState.bowler });
@@ -596,15 +620,20 @@
     }
 
     function showWicketModal() {
-      if (!matchState.striker || !matchState.bowler) return;
+      console.log('showWicketModal called');
+      if (!matchState.striker || !matchState.bowler) {
+        console.log('Missing striker or bowler');
+        return;
+      }
       
       const modal = document.getElementById('wicketModal');
       const title = document.getElementById('wicketModalTitle');
+      console.log('Modal element:', modal);
       
       if (matchState.freeHit) {
         title.textContent = 'Free Hit - Only Run Out Allowed';
         const buttons = document.getElementById('wicketTypeButtons');
-        buttons.innerHTML = '<button class="modal-btn" onclick="selectWicketType(\'runout\')">Run Out</button>';
+        buttons.innerHTML = '<button class="modal-btn" onclick="showRunOutModal()">Run Out</button>';
       } else {
         title.textContent = 'Wicket Type';
         const buttons = document.getElementById('wicketTypeButtons');
@@ -613,39 +642,77 @@
           <button class="modal-btn" onclick="selectWicketType('caught')">Caught</button>
           <button class="modal-btn" onclick="selectWicketType('lbw')">LBW</button>
           <button class="modal-btn" onclick="selectWicketType('stumped')">Stumped</button>
-          <button class="modal-btn" onclick="selectWicketType('runout')">Run Out</button>
+          <button class="modal-btn" onclick="showRunOutModal()">Run Out</button>
           <button class="modal-btn" onclick="selectWicketType('hitwicket')">Hit Wicket</button>
         `;
       }
       
       modal.classList.add('active');
+      console.log('Modal should be visible now');
     }
 
-    function selectWicketType(wicketType) {
+    function showRunOutModal() {
       closeModal('wicketModal');
-      recordWicket(wicketType);
+      document.getElementById('runOutModal').classList.add('active');
     }
 
-    function recordWicket(wicketType) {
-      if (!matchState.striker || !matchState.bowler) return;
+    function processRunOut(runs) {
+      const batsmanSelect = document.getElementById('runOutBatsmanSelect');
+      const outBatsman = batsmanSelect.value; // 'striker' or 'nonStriker'
       
+      closeModal('runOutModal');
       haptic('heavy');
       
-      matchState.batsmen[matchState.striker].out = true;
-      matchState.batsmen[matchState.striker].outType = wicketType;
+      // Award runs to striker (they were attempting the run)
+      matchState.batsmen[matchState.striker].runs += runs;
+      matchState.batsmen[matchState.striker].balls += 1;
       
-      // Only credit bowler for non-runout wickets
-      if (wicketType !== 'runout') {
-        matchState.bowlers[matchState.bowler].wickets += 1;
-      }
+      // Update bowler and score
+      matchState.bowlers[matchState.bowler].runs += runs;
+      matchState.bowlers[matchState.bowler].balls += 1;
+      matchState.score.runs += runs;
+      matchState.balls += 1;
       
-      // All wickets count as a legal ball except run outs on non-legal deliveries
-      if (!matchState.freeHit || wicketType === 'runout') {
-        matchState.bowlers[matchState.bowler].balls += 1;
-        matchState.balls += 1;
-      }
+      // Determine who got out
+      const outPlayer = outBatsman === 'striker' ? matchState.striker : matchState.nonStriker;
+      matchState.batsmen[outPlayer].out = true;
+      matchState.batsmen[outPlayer].outType = 'run out';
       
+      // Update score wickets
       matchState.score.wickets += 1;
+      
+      // Determine strike for next ball
+      // If odd runs completed, batsmen crossed
+      // If even runs, they didn't cross or crossed back
+      let battersCrossed = (runs % 2 === 1);
+      
+      // If the batsman who got out was the striker:
+      // - If they crossed (odd runs), non-striker is now at striker end
+      // - If they didn't cross (even runs), striker position stays same
+      // If non-striker got out:
+      // - If they crossed (odd runs), striker is now at non-striker end  
+      // - If they didn't cross (even runs), positions stay same
+      
+      if (outBatsman === 'striker') {
+        // Striker got out
+        if (battersCrossed) {
+          // They crossed, so non-striker is now at striker end
+          matchState.striker = matchState.nonStriker;
+        }
+        // else striker position gets new batsman (handled in showBatsmanModal)
+      } else {
+        // Non-striker got out
+        if (battersCrossed) {
+          // They crossed, swap the positions
+          [matchState.striker, matchState.nonStriker] = [matchState.nonStriker, matchState.striker];
+        }
+        // else positions stay same, just replace non-striker
+      }
+      
+      // Add runs first, then wicket separately
+      if (runs > 0) {
+        matchState.thisOver.push(runs.toString());
+      }
       matchState.thisOver.push('W');
       
       if (matchState.score.wickets >= matchState.setup.wicketsLimit) {
@@ -661,8 +728,61 @@
         matchState.pendingOverComplete = false;
       }
       
+      // Reset free hit after run out
+      matchState.freeHit = false;
+      
+      addToBallHistory({ 
+        type: 'wicket',
+        wicketType: 'run out',
+        outBatsman: outBatsman,
+        runs: runs,
+        striker: matchState.striker, 
+        nonStriker: matchState.nonStriker,
+        bowler: matchState.bowler,
+        overComplete: overComplete
+      });
+      
+      // Store who got out so we know who to replace
+      matchState.runOutVictim = outPlayer;
+      
+      showBatsmanModal();
+      updateDisplay();
+    }
+
+    function selectWicketType(wicketType) {
+      closeModal('wicketModal');
+      
+      if (!matchState.striker || !matchState.bowler) return;
+      
+      haptic('heavy');
+      
+      matchState.batsmen[matchState.striker].out = true;
+      matchState.batsmen[matchState.striker].outType = wicketType;
+      
+      // Credit bowler with wicket
+      matchState.bowlers[matchState.bowler].wickets += 1;
+      matchState.bowlers[matchState.bowler].balls += 1;
+      
+      matchState.score.wickets += 1;
+      matchState.balls += 1;
+      
+      matchState.thisOver.push('W');
+      
       // Reset free hit after wicket
       matchState.freeHit = false;
+      
+      if (matchState.score.wickets >= matchState.setup.wicketsLimit) {
+        handleInningsComplete();
+        return;
+      }
+      
+      const overComplete = (matchState.balls === 6);
+      if (overComplete) {
+        matchState.balls = 0;
+        matchState.pendingOverComplete = true;
+      } else {
+        matchState.pendingOverComplete = false;
+      }
       
       addToBallHistory({ 
         type: 'wicket',
@@ -673,13 +793,20 @@
       });
       
       showBatsmanModal();
+      updateDisplay();
     }
 
     function showBatsmanModal() {
       const select = document.getElementById('newBatsmanSelect');
       const battingPlayers = matchState.setup[matchState.battingTeam].players;
+      
+      // Filter out the run out victim if set, otherwise filter current batsmen
+      const excludePlayers = matchState.runOutVictim ? 
+        [matchState.runOutVictim] : 
+        [matchState.striker, matchState.nonStriker];
+      
       select.innerHTML = battingPlayers
-        .filter(p => !matchState.batsmen[p].out && !matchState.batsmen[p].retired && p !== matchState.striker && p !== matchState.nonStriker)
+        .filter(p => !matchState.batsmen[p].out && !matchState.batsmen[p].retired && !excludePlayers.includes(p))
         .map(p => `<option value="${p}">${p}</option>`)
         .join('');
       document.getElementById('batsmanModal').classList.add('active');
@@ -718,7 +845,22 @@
         document.getElementById('batsmanModalTitle').textContent = 'New Batsman';
         updateDisplay();
       } else {
-        matchState.striker = select.value;
+        // Regular wicket or run out - replace the appropriate batsman
+        const newBatsman = select.value;
+        
+        if (matchState.runOutVictim) {
+          // Run out case - replace the victim
+          if (matchState.runOutVictim === matchState.striker) {
+            matchState.striker = newBatsman;
+          } else {
+            matchState.nonStriker = newBatsman;
+          }
+          matchState.runOutVictim = null; // Clear the flag
+        } else {
+          // Regular wicket - striker got out
+          matchState.striker = newBatsman;
+        }
+        
         closeModal('batsmanModal');
         document.getElementById('batsmanModalTitle').textContent = 'New Batsman';
         
@@ -844,16 +986,40 @@
       } else if (lastBall.type === 'wide') {
         matchState.bowlers[lastBall.bowler].runs -= lastBall.runs;
         matchState.score.runs -= lastBall.runs;
-        matchState.extras.wd -= lastBall.runs;
+        matchState.extras.wd -= 1;  // Always subtract 1 wide, not the total runs
       } else if (lastBall.type === 'wicket') {
-        matchState.batsmen[lastBall.striker].out = false;
-        matchState.batsmen[lastBall.striker].outType = null;
-        if (lastBall.wicketType !== 'runout') {
-          matchState.bowlers[lastBall.bowler].wickets -= 1;
+        // Handle run out undo
+        if (lastBall.wicketType === 'run out' && lastBall.runs !== undefined) {
+          // Undo runs
+          matchState.batsmen[lastBall.striker].runs -= lastBall.runs;
+          matchState.batsmen[lastBall.striker].balls -= 1;
+          matchState.bowlers[lastBall.bowler].runs -= lastBall.runs;
+          matchState.bowlers[lastBall.bowler].balls -= 1;
+          matchState.score.runs -= lastBall.runs;
+          matchState.balls -= 1;
+          
+          // Restore batsman positions
+          if (lastBall.striker && lastBall.nonStriker) {
+            matchState.striker = lastBall.striker;
+            matchState.nonStriker = lastBall.nonStriker;
+          }
+          
+          // Un-out the batsman who was run out
+          const outBatsman = lastBall.outBatsman === 'striker' ? lastBall.striker : lastBall.nonStriker;
+          matchState.batsmen[outBatsman].out = false;
+          matchState.batsmen[outBatsman].outType = null;
+        } else {
+          // Regular wicket undo
+          matchState.batsmen[lastBall.striker].out = false;
+          matchState.batsmen[lastBall.striker].outType = null;
+          if (lastBall.wicketType !== 'runout') {
+            matchState.bowlers[lastBall.bowler].wickets -= 1;
+          }
+          matchState.bowlers[lastBall.bowler].balls -= 1;
+          matchState.balls -= 1;
         }
-        matchState.bowlers[lastBall.bowler].balls -= 1;
+        
         matchState.score.wickets -= 1;
-        matchState.balls -= 1;
       }
       
       matchState.thisOver.pop();
