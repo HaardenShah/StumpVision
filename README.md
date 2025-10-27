@@ -47,7 +47,6 @@ Perfect for pickup cricket, club matches, and growing your cricket community! �
 ✅ **Save to server** - Persistent match storage with unique IDs  
 ✅ **Premium share cards** - Beautiful gradient scorecards with modern design  
 ✅ **Social media ready** - One-tap share to Instagram, WhatsApp, Twitter  
-✅ **Live viewer links** - Share read-only live match links (when backend enabled)  
 
 ---
 
@@ -274,7 +273,6 @@ The app implements several security measures:
 
 - ✅ Input sanitization on save
 - ✅ File-based storage (no SQL injection risk)
-- ✅ Read-only live viewer mode available
 - ✅ Security headers in API responses
 
 ### Protecting the `/data/` Directory
