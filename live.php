@@ -161,6 +161,18 @@
         }
 
         if (result.state) {
+          // Check if match is completed and redirect to summary
+          if (result.state.matchCompleted && result.state.saveId) {
+            // Store completed match data for summary page
+            localStorage.setItem('stumpvision_completed_match', JSON.stringify({
+              saveId: result.state.saveId,
+              fromLiveView: true
+            }));
+            // Redirect to summary page
+            window.location.href = 'summary.php';
+            return;
+          }
+
           displayScore(result.state);
           lastUpdated = result.last_updated;
           document.getElementById('loadingContainer').style.display = 'none';
