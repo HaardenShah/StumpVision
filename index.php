@@ -533,6 +533,7 @@
       extras: { nb: 0, wd: 0, b: 0, lb: 0 },
       ballHistory: [],
       firstInningsScore: null,
+      firstInningsData: null, // Will store complete first innings stats
       saveId: null,
       pendingOverComplete: false,
       runOutVictim: null,
@@ -1688,11 +1689,26 @@
         alert('Match Complete!');
         return;
       }
-      
+
+      // Store complete first innings data before resetting
       matchState.firstInningsScore = matchState.score.runs;
+      matchState.firstInningsData = {
+        battingTeam: matchState.battingTeam,
+        bowlingTeam: matchState.bowlingTeam,
+        score: { ...matchState.score },
+        overs: matchState.overs,
+        balls: matchState.balls,
+        batsmen: JSON.parse(JSON.stringify(matchState.batsmen)), // Deep copy
+        bowlers: JSON.parse(JSON.stringify(matchState.bowlers)), // Deep copy
+        extras: { ...matchState.extras },
+        partnerships: [...matchState.partnerships],
+        wicketsFallen: [...matchState.wicketsFallen],
+        milestones: [...matchState.milestones]
+      };
+
       matchState.innings = 2;
       [matchState.battingTeam, matchState.bowlingTeam] = [matchState.bowlingTeam, matchState.battingTeam];
-      
+
       matchState.score = { runs: 0, wickets: 0 };
       matchState.overs = 0;
       matchState.balls = 0;
@@ -1703,26 +1719,30 @@
       matchState.nonStriker = null;
       matchState.bowler = null;
       matchState.extras = { nb: 0, wd: 0, b: 0, lb: 0 };
-      
+      matchState.partnerships = [];
+      matchState.wicketsFallen = [];
+      matchState.milestones = [];
+      matchState.currentPartnership = { runs: 0, balls: 0, batsman1: null, batsman2: null };
+
       const newBattingPlayers = matchState.setup[matchState.battingTeam].players;
       newBattingPlayers.forEach(p => {
-        matchState.batsmen[p] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false, outType: null, retired: false };
+        matchState.batsmen[p] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false, outType: null, retired: false, dots: 0 };
       });
-      
+
       const newBowlingPlayers = matchState.setup[matchState.bowlingTeam].players;
       newBowlingPlayers.forEach(p => {
         if (!matchState.bowlers[p]) {
-          matchState.bowlers[p] = { overs: 0, balls: 0, runs: 0, wickets: 0 };
+          matchState.bowlers[p] = { overs: 0, balls: 0, runs: 0, wickets: 0, dots: 0 };
         } else {
-          matchState.bowlers[p] = { overs: 0, balls: 0, runs: 0, wickets: 0 };
+          matchState.bowlers[p] = { overs: 0, balls: 0, runs: 0, wickets: 0, dots: 0 };
         }
       });
-      
+
       updateDisplay();
-      
+
       const target = matchState.firstInningsScore + 1;
       alert(`Innings break!\n\n${matchState.setup[matchState.bowlingTeam].name} scored ${matchState.firstInningsScore} runs.\n\n${matchState.setup[matchState.battingTeam].name} needs ${target} runs to win!`);
-      
+
       promptSecondInningsPlayers();
     }
 
