@@ -71,21 +71,27 @@ Perfect for pickup cricket, club matches, and growing your cricket community! ðŸ
 ### Installation
 
 1. **Upload files** to your web server
-2. **Set permissions**:
+2. **Set secure permissions**:
    ```bash
-   chmod 777 data/
-   mkdir data/live
-   chmod 777 data/live/
+   # Find your web server user (usually www-data, apache, or nginx)
+   # Then set ownership and permissions:
+   sudo chown -R www-data:www-data data/
+   sudo mkdir -p data/live
+   sudo chmod 755 data/ data/live/
    ```
+
+   **Security Note**: Never use 777 permissions in production! Instead, change ownership to your web server user so only the web server can write files.
+
 3. **Configure admin access**: Visit `https://yourdomain.com/admin/` and set up password on first run
 4. **Create app icons** (192x192 and 512x512 PNG - place in `assets/icons/`)
 5. **Start scoring**: Visit `https://yourdomain.com/setup.php`
 
 ### Requirements
 - **PHP 7.4+** (8.x recommended)
-- **Write permissions** on `/data/` directory (777 for web server access)
-- **Session support** (for admin panel authentication)
-- **JSON support** (standard in PHP 7.4+)
+- **Proper file ownership** - `/data/` directory owned by web server user
+- **Write permissions** - 755 on directories (owner can write, others read-only)
+- **Session support** - For admin panel authentication
+- **JSON support** - Standard in PHP 7.4+
 
 ---
 
@@ -282,25 +288,43 @@ Customize in `api/lib/CardRenderer.php`:
 
 ### "Save failed" / Matches not persisting
 **Problem**: Matches disappear after creation, not visible in admin panel
-**Solution**:
+
+**Root Cause**: Web server doesn't have write permissions to `/data/` directory
+
+**Solution** (Secure approach):
 ```bash
-chmod 777 /path/to/stumpvision/data/
-mkdir /path/to/stumpvision/data/live
-chmod 777 /path/to/stumpvision/data/live/
+# Find your web server user
+ps aux | grep -E 'apache|nginx|www-data|httpd' | head -1
+
+# Common web server users:
+# - www-data (Debian/Ubuntu)
+# - apache (Red Hat/CentOS)
+# - nginx (if using Nginx)
+
+# Set proper ownership and permissions
+sudo chown -R www-data:www-data /path/to/stumpvision/data/
+sudo chmod 755 /path/to/stumpvision/data/
+sudo chmod 755 /path/to/stumpvision/data/live/
 ```
-The web server needs write permissions to save match files.
+
+**Why NOT 777?**
+- 777 permissions allow ANY user on the system to modify/delete match files
+- This is a serious security risk - anyone with shell access can corrupt your data
+- Instead, use proper ownership so only the web server can write files
 
 ### Can't access admin panel
 - Visit `/admin/` for first-time setup
 - Check that PHP sessions are enabled
-- Verify `/data/config.json` is writable
+- Verify `/data/config.json` is writable by web server user
 - Password stored as bcrypt hash in config.json
+- Ensure `data/` directory is owned by web server user
 
 ### Live sharing not working
-- Ensure `/data/live/` directory exists with 777 permissions
+- Ensure `/data/live/` directory exists and is owned by web server user
 - Check browser console for API errors
 - Verify match has been saved (has match ID)
 - Test the live URL in incognito mode
+- Verify web server can write to `/data/live/`
 
 ### PWA not installing
 - **Must use HTTPS** (required for PWA)
@@ -377,9 +401,33 @@ location /data/ {
 
 #### For Shared Hosting:
 If you can't configure the web server:
-1. Keep `/data/` outside of your public web directory if possible
-2. Or rely on PHP's built-in file permissions (777 for writing, but protect via other means)
-3. Consider adding password protection for production use
+1. **Best option**: Keep `/data/` outside of your public web directory if possible
+2. **Contact support**: Ask your hosting provider to change ownership of `/data/` to the web server user
+3. **Last resort**: If you must use 777 permissions temporarily, ensure you have web server protection (Apache/Nginx config above)
+4. Consider password-protecting the entire application in production environments
+
+### Important: File Permissions Best Practices
+
+**Secure Setup** (Recommended):
+```bash
+# Directories: 755 (rwxr-xr-x)
+- Owner (www-data) can read/write/execute
+- Others can only read/list directory contents
+
+# Files: 644 (rw-r--r--)
+- Owner (www-data) can read/write
+- Others can only read
+
+# This prevents unauthorized users from modifying your data
+```
+
+**Insecure Setup** (Never use in production):
+```bash
+# 777 permissions = SECURITY RISK
+- Anyone on the server can delete/modify match files
+- Malicious users could corrupt your database
+- Attackers could inject malicious data
+```
 
 ---
 
