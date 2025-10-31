@@ -109,7 +109,7 @@
   <div class="container">
     <div class="header">
       <h1>StumpVision</h1>
-      <span class="live-badge" id="liveBadge">● LIVE</span>
+      <span class="live-badge" id="liveBadge">LIVE</span>
     </div>
 
     <div id="errorContainer" style="display: none;"></div>
@@ -137,7 +137,7 @@
       const errorContainer = document.getElementById('errorContainer');
       errorContainer.innerHTML = `<div class="error-msg">${message}</div>`;
       errorContainer.style.display = 'block';
-      document.getElementById('liveBadge').textContent = '● OFFLINE';
+      document.getElementById('liveBadge').textContent = 'OFFLINE';
       document.getElementById('liveBadge').style.background = 'var(--muted)';
     }
 
@@ -263,7 +263,7 @@
           <div class="partnership-card">
             <div class="partnership-title">Current Partnership</div>
             <div class="partnership-stats">${p.runs} runs</div>
-            <div class="partnership-meta">${p.balls} balls • ${p.batsman1} & ${p.batsman2}</div>
+            <div class="partnership-meta">${p.balls} balls - ${p.batsman1} & ${p.batsman2}</div>
           </div>
         `;
       }
@@ -282,9 +282,9 @@
             </div>
             <div class="player-stats">
               <strong>${strikerStats?.runs || 0}</strong> (${strikerStats?.balls || 0})
-              • ${strikerStats?.fours || 0}×4
-              • ${strikerStats?.sixes || 0}×6
-              • SR: ${strikerSR}
+              - ${strikerStats?.fours || 0}x4
+              - ${strikerStats?.sixes || 0}x6
+              - SR: ${strikerSR}
             </div>
           </div>
         `;
@@ -299,9 +299,9 @@
               </div>
               <div class="player-stats">
                 <strong>${nonStrikerStats?.runs || 0}</strong> (${nonStrikerStats?.balls || 0})
-                • ${nonStrikerStats?.fours || 0}×4
-                • ${nonStrikerStats?.sixes || 0}×6
-                • SR: ${nonStrikerSR}
+                - ${nonStrikerStats?.fours || 0}x4
+                - ${nonStrikerStats?.sixes || 0}x6
+                - SR: ${nonStrikerSR}
               </div>
             </div>
           `;
@@ -324,9 +324,9 @@
             </div>
             <div class="player-stats">
               <strong>${bowlerStats?.wickets || 0}/${bowlerStats?.runs || 0}</strong>
-              • ${bowlerOvers}.${bowlerBalls} overs
-              • Econ: ${bowlerEcon}
-              ${bowlerStats?.dots ? `• Dots: ${bowlerStats.dots}` : ''}
+              - ${bowlerOvers}.${bowlerBalls} overs
+              - Econ: ${bowlerEcon}
+              ${bowlerStats?.dots ? `- Dots: ${bowlerStats.dots}` : ''}
             </div>
           </div>
         `;
@@ -354,7 +354,7 @@
             ballClass = 'ball-extra';
             ballText = `${ball.runs}LB`;
           } else {
-            ballText = ball.runs === 0 ? '•' : ball.runs;
+            ballText = ball.runs === 0 ? '.' : ball.runs;
           }
 
           html += `<div class="ball ${ballClass}">${ballText}</div>`;
@@ -416,7 +416,7 @@
         html += `<h3 class="section-header">Remaining Batsmen</h3>`;
         html += `<div class="player-card">`;
         html += `<div class="player-stats">`;
-        html += remainingBatsmen.map(name => escapeHtml(name)).join(' • ');
+        html += remainingBatsmen.map(name => escapeHtml(name)).join(' - ');
         html += `</div></div>`;
       }
 
@@ -476,7 +476,7 @@
         html += `<h3 class="section-header">Remaining Bowlers</h3>`;
         html += `<div class="player-card">`;
         html += `<div class="player-stats">`;
-        html += remainingBowlers.map(name => escapeHtml(name)).join(' • ');
+        html += remainingBowlers.map(name => escapeHtml(name)).join(' - ');
         html += `</div></div>`;
       }
 
@@ -487,10 +487,10 @@
           html += `<h3 class="section-header">Extras</h3>`;
           html += `<div class="player-card">`;
           html += `<div class="player-stats">`;
-          html += `<strong>Total: ${totalExtras}</strong> • `;
-          html += `No-balls: ${state.extras.nb || 0} • `;
-          html += `Wides: ${state.extras.wd || 0} • `;
-          html += `Byes: ${state.extras.b || 0} • `;
+          html += `<strong>Total: ${totalExtras}</strong> - `;
+          html += `No-balls: ${state.extras.nb || 0} - `;
+          html += `Wides: ${state.extras.wd || 0} - `;
+          html += `Byes: ${state.extras.b || 0} - `;
           html += `Leg-byes: ${state.extras.lb || 0}`;
           html += `</div></div>`;
         }
@@ -548,7 +548,7 @@
         html += `<div class="player-card">`;
         html += `<div class="player-stats">`;
         state.milestones.forEach((m, idx) => {
-          if (idx > 0) html += ' • ';
+          if (idx > 0) html += ' - ';
           html += `${escapeHtml(m.player)}: ${m.milestone} (${m.balls}b)`;
         });
         html += `</div></div>`;
@@ -668,10 +668,10 @@
             html += `<h3 class="section-header">Extras</h3>`;
             html += `<div class="player-card">`;
             html += `<div class="player-stats">`;
-            html += `<strong>Total: ${totalExtras}</strong> • `;
-            html += `No-balls: ${inn1.extras.nb || 0} • `;
-            html += `Wides: ${inn1.extras.wd || 0} • `;
-            html += `Byes: ${inn1.extras.b || 0} • `;
+            html += `<strong>Total: ${totalExtras}</strong> - `;
+            html += `No-balls: ${inn1.extras.nb || 0} - `;
+            html += `Wides: ${inn1.extras.wd || 0} - `;
+            html += `Byes: ${inn1.extras.b || 0} - `;
             html += `Leg-byes: ${inn1.extras.lb || 0}`;
             html += `</div></div>`;
           }
