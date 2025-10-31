@@ -46,6 +46,7 @@ function loginAdmin(string $username, string $password): bool
     $credentials = Config::getAdminCredentials();
 
     if ($username === $credentials['username'] && password_verify($password, $credentials['password_hash'])) {
+        session_regenerate_id(true);  // ADD THIS LINE
         $_SESSION['admin_logged_in'] = true;
         $_SESSION['admin_username'] = $username;
         $_SESSION['admin_login_time'] = time();

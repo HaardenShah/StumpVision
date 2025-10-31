@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['csrf_token'])) {
                 $message = 'Player name is required';
                 $messageType = 'error';
             } else {
-                $response = file_get_contents('http://localhost' . $_SERVER['REQUEST_URI'] . '/../api/players.php?action=add', false, stream_context_create([
+                $response = file_get_contents('http://localhost/api/players.php?action=add', false, stream_context_create([
                     'http' => [
                         'method' => 'POST',
                         'header' => 'Content-Type: application/json',
