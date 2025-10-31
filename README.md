@@ -1,6 +1,6 @@
 # 🏏 StumpVision v2 — Cricket Scorer
 
-**StumpVision** is a lightweight, mobile-first web app for scoring cricket matches. Built with **PHP + vanilla JavaScript**, it works completely offline, installs as a PWA, and generates **beautiful shareable scorecards** for social media.
+**StumpVision** is a lightweight, mobile-first web app for scoring cricket matches. Built with **PHP + vanilla JavaScript**, it works completely offline, installs as a PWA, and provides **real-time live score sharing** for spectators.
 
 Perfect for pickup cricket, club matches, and growing your cricket community! 🌟
 
@@ -9,44 +9,60 @@ Perfect for pickup cricket, club matches, and growing your cricket community! �
 ## ⚡ Features
 
 ### Core Scoring
-✅ **Simple scoring pad** - Record runs, boundaries, wickets, extras with one tap  
-✅ **Wicket type tracking** - Record dismissal type (bowled, caught, LBW, stumped, run out, hit wicket)  
-✅ **Smart run-out logic** - Track runs completed and which batsman got out  
-✅ **Smart cricket logic** - No-balls trigger free hits, auto-advance overs after 6 legal balls  
-✅ **Extras tracking** - NB, WD, Byes, Leg Byes tracked separately with proper wide ball handling  
-✅ **Comprehensive stats** - Strike rates, economy rates, balls faced, overs bowled, dot balls, maidens  
-✅ **Ball-by-ball tracking** - Complete delivery history with undo support  
-✅ **Target tracker** - Real-time chase calculations in 2nd innings  
-✅ **Partnership tracking** - Monitor current and historical partnerships with runs and balls  
-✅ **Fall of wickets** - Track when and how each wicket fell  
-✅ **Milestones** - Automatic detection of 50s, 100s, 150s, 200s  
+✅ **Simple scoring pad** - Record runs, boundaries, wickets, extras with one tap
+✅ **Wicket type tracking** - Record dismissal type (bowled, caught, LBW, stumped, run out, hit wicket)
+✅ **Smart run-out logic** - Track runs completed and which batsman got out
+✅ **Smart cricket logic** - No-balls trigger free hits, auto-advance overs after 6 legal balls
+✅ **Extras tracking** - NB, WD, Byes, Leg Byes tracked separately with proper wide ball handling
+✅ **Comprehensive stats** - Strike rates, economy rates, balls faced, overs bowled, dot balls, maidens
+✅ **Ball-by-ball tracking** - Complete delivery history with undo support
+✅ **Target tracker** - Real-time chase calculations in 2nd innings
+✅ **Partnership tracking** - Monitor current and historical partnerships with runs and balls
+✅ **Fall of wickets** - Track when and how each wicket fell
+✅ **Milestones** - Automatic detection of 50s, 100s, 150s, 200s
 
 ### Match Management
-✅ **Mid-innings player management** - Add, remove, or retire players during the match  
-✅ **Dynamic match settings** - Adjust overs and wickets limit on the fly  
-✅ **Retire/unretire batsmen** - Players can retire and return later with stats intact  
-✅ **Player stats retention** - Retired players keep their scores when they return  
+✅ **Auto-save on first ball** - Generates unique match ID and saves automatically
+✅ **Auto-save per over** - Match data saved every 6 balls with throttling
+✅ **Mid-innings player management** - Add, remove, or retire players during the match
+✅ **Dynamic match settings** - Adjust overs and wickets limit on the fly
+✅ **Retire/unretire batsmen** - Players can retire and return later with stats intact
+✅ **Player stats retention** - Retired players keep their scores when they return
+✅ **Match completion redirect** - Automatic redirect to summary page when match ends
+
+### Live Score Sharing
+✅ **Live score broadcast** - Share real-time scores with spectators via unique URL
+✅ **Beautiful live viewer** - Gradient score cards with live badge animation
+✅ **Auto-refresh** - Updates every 5 seconds for spectators
+✅ **Full statistics display** - Batting, bowling, partnerships visible to viewers
+✅ **Mobile optimized** - Clean, responsive layout for spectators
+✅ **Session management** - Start/stop live sharing from scoring interface
+
+### Admin Panel
+✅ **Password-protected dashboard** - Secure admin access with session management
+✅ **Match management** - View, verify, and delete saved matches
+✅ **Match verification** - Mark matches as verified for stats counting
+✅ **Player database** - Track all players across matches
+✅ **Statistics overview** - Total matches, players, verified matches
+✅ **Live session monitoring** - View and manage active live score sessions
+✅ **Settings management** - Configure admin password and system settings
 
 ### Match Setup
-✅ **Toss configuration** - Select who won toss and batting/bowling choice  
-✅ **Opening players** - Choose opening batsmen and bowler  
-✅ **Team rosters** - Add players dynamically with instant validation  
-✅ **Match settings** - Overs per innings, wickets limit, match format  
+✅ **Toss configuration** - Select who won toss and batting/bowling choice
+✅ **Opening players** - Choose opening batsmen and bowler
+✅ **Team rosters** - Add players dynamically with instant validation
+✅ **Match settings** - Overs per innings, wickets limit, match format
 
 ### Mobile Experience
-✅ **Sunlight-optimized UI** - High contrast white text on dark buttons for outdoor visibility  
-✅ **Auto dark mode** - Respects system preference  
-✅ **Haptic feedback** - Vibration on scoring actions  
-✅ **Touch-optimized** - Large buttons (48px+ tap targets)  
-✅ **PWA installable** - Add to home screen, works like native app  
-✅ **Offline-first** - Score matches without internet  
-✅ **Smart UI** - Scoring dock hidden on Stats/Settings for full content visibility  
-✅ **Fullscreen mode** - True fullscreen on mobile devices  
-
-### Social Sharing
-✅ **Save to server** - Persistent match storage with unique IDs  
-✅ **Premium share cards** - Beautiful gradient scorecards with modern design  
-✅ **Social media ready** - One-tap share to Instagram, WhatsApp, Twitter  
+✅ **Sunlight-optimized UI** - High contrast white text on dark buttons for outdoor visibility
+✅ **Auto dark mode** - Respects system preference
+✅ **Haptic feedback** - Vibration on scoring actions
+✅ **Touch-optimized** - Large buttons (48px+ tap targets)
+✅ **PWA installable** - Add to home screen, works like native app
+✅ **Offline-first** - Score matches without internet
+✅ **Smart UI** - Scoring dock hidden on Stats/Settings for full content visibility
+✅ **Fullscreen mode** - True fullscreen on mobile devices
+✅ **Plain text output** - No Unicode characters for maximum compatibility  
 
 ---
 
@@ -55,30 +71,21 @@ Perfect for pickup cricket, club matches, and growing your cricket community! �
 ### Installation
 
 1. **Upload files** to your web server
-2. **Set permissions**: `chmod 755 data data/cards`
-3. **Create app icons** (192x192 and 512x512 PNG - see ICONS_README.md)
-4. **Visit**: `https://yourdomain.com/setup.php`
+2. **Set permissions**:
+   ```bash
+   chmod 777 data/
+   mkdir data/live
+   chmod 777 data/live/
+   ```
+3. **Configure admin access**: Visit `https://yourdomain.com/admin/` and set up password on first run
+4. **Create app icons** (192x192 and 512x512 PNG - place in `assets/icons/`)
+5. **Start scoring**: Visit `https://yourdomain.com/setup.php`
 
 ### Requirements
 - **PHP 7.4+** (8.x recommended)
-- **Write permissions** on `/data/` directory
-- **ImageMagick extension** (for share cards)
-- **FFmpeg** (optional - for video cards)
-
----
-
-## 🎨 Share Card Design
-
-The share cards feature a **premium gradient design** inspired by modern travel apps:
-
-- **Gradient backgrounds** - Eye-catching blue-to-purple gradients
-- **Glassmorphism effects** - Frosted glass cards with subtle shadows
-- **Clean typography** - Clear hierarchy with score emphasis
-- **Team branding** - Prominent team names with modern layout
-- **Stats showcase** - Top performers highlighted beautifully
-- **Social-ready** - Optimized for Instagram Stories, Twitter, WhatsApp
-
-Perfect for **growing your cricket club** through viral social sharing! 📱✨
+- **Write permissions** on `/data/` directory (777 for web server access)
+- **Session support** (for admin panel authentication)
+- **JSON support** (standard in PHP 7.4+)
 
 ---
 
@@ -94,6 +101,7 @@ Perfect for **growing your cricket club** through viral social sharing! 📱✨
 
 ### 2. Score the Match
 - **Tap scoring buttons** to record deliveries
+- **Auto-save** - First ball generates match ID and saves automatically
 - **Select wicket type** when recording dismissals
 - **Run outs** - Specify runs completed and who got out
 - **Swap Strike** if batsmen cross
@@ -101,26 +109,38 @@ Perfect for **growing your cricket club** through viral social sharing! 📱✨
 - **Undo** if you make a mistake
 - **View Stats** tab for comprehensive live statistics
 - Overs auto-complete after 6 legal balls
+- Match auto-saves every over (every 6 balls)
 - Select new bowler when prompted
 
-### 3. Manage Players Mid-Match
+### 3. Share Live Scores
+1. Go to **Settings** tab
+2. Click **"Start Live Sharing"**
+3. Copy the generated live URL
+4. Share with spectators via WhatsApp, SMS, etc.
+5. Spectators see real-time updates (refreshes every 5 seconds)
+6. Click **"Stop Live Sharing"** when match ends
+
+### 4. Manage Players Mid-Match
 1. Go to **Settings** tab
 2. Click **"Manage Players"**
 3. Add new players to either team
 4. Remove inactive players
 5. Unretire players to bring them back
 
-### 4. Adjust Match Settings
+### 5. Adjust Match Settings
 1. Go to **Settings** tab
 2. Update **Overs per innings** (1-50)
 3. Update **Wickets limit** (1-11)
 4. Changes apply immediately
 
-### 5. Save & Share
-1. Go to **Settings** tab
-2. Click **"Save Match"** (generates unique ID)
-3. Click **"Share Score Card"** (creates beautiful graphic)
-4. Share to social media or download
+### 6. Admin Panel
+1. Visit `https://yourdomain.com/admin/`
+2. Login with configured password
+3. **View all matches** - Sort by date, verification status
+4. **Verify matches** - Mark as verified for stats counting
+5. **View players** - See player statistics across matches
+6. **Monitor live sessions** - See active live score shares
+7. **Manage settings** - Update admin password
 
 ---
 
@@ -188,29 +208,51 @@ Perfect for **growing your cricket club** through viral social sharing! 📱✨
 
 ### Stack
 - **Frontend**: Vanilla JavaScript (ES6+), HTML5, CSS3
-- **Backend**: PHP 8.x with flat-file JSON storage
+- **Backend**: PHP 7.4+ with flat-file JSON storage
 - **Storage**: localStorage (client) + `/data/*.json` (server)
+- **Authentication**: PHP sessions for admin panel
+- **Live Updates**: AJAX polling (5-second intervals)
 - **Offline**: Service Worker + Cache API
-- **Share Cards**: ImageMagick + modern gradient design
 
 ### File Structure
 ```
-Core App (v2):
-├── index.php          - Main app (all-in-one: HTML + CSS + JS)
-├── setup.php          - Match setup (all-in-one: HTML + CSS + JS)
+Core App:
+├── index.php          - Main scoring interface (all-in-one: HTML + CSS + JS)
+├── setup.php          - Match configuration page
+├── live.php           - Live score viewer for spectators
+├── summary.php        - Match summary/recap page
+
+Admin Panel:
+├── admin/
+│   ├── index.php         - Dashboard with stats overview
+│   ├── login.php         - Authentication page
+│   ├── matches.php       - Match management & verification
+│   ├── players.php       - Player database & statistics
+│   ├── live-sessions.php - Active live session monitoring
+│   ├── settings.php      - System configuration
+│   ├── auth.php          - Authentication logic
+│   └── header.php        - Shared admin navigation
 
 Backend API:
-├── api/matches.php    - CRUD for match data
-├── api/renderCard.php - Generate premium share graphics
-└── api/lib/           - Image rendering with modern design
+├── api/
+│   ├── matches.php    - CRUD for match data with CSRF protection
+│   ├── live.php       - Live session management & updates
+│   ├── players.php    - Player data aggregation
+│   └── renderCard.php - Share card generation (if available)
 
 PWA:
-├── manifest.webmanifest - App metadata
-└── service-worker.js    - Offline caching
+├── manifest.webmanifest - App metadata for installation
+└── service-worker.js    - Offline caching strategy
 
-Data:
-├── data/*.json        - Saved matches
-└── data/cards/        - Generated share cards (PNG/MP4)
+Assets:
+├── assets/
+│   └── icons/         - PWA icons (192x192, 512x512)
+
+Data Storage:
+├── data/
+│   ├── *.json         - Saved match files (auto-generated)
+│   ├── live/          - Live session state files
+│   └── config.json    - Admin settings (password hash)
 ```
 
 ---
@@ -238,32 +280,58 @@ Customize in `api/lib/CardRenderer.php`:
 
 ## 🐛 Troubleshooting
 
-### "Save failed"
-- Check `/data/` has write permissions (755 or 777)
-- Verify PHP error logs
+### "Save failed" / Matches not persisting
+**Problem**: Matches disappear after creation, not visible in admin panel
+**Solution**:
+```bash
+chmod 777 /path/to/stumpvision/data/
+mkdir /path/to/stumpvision/data/live
+chmod 777 /path/to/stumpvision/data/live/
+```
+The web server needs write permissions to save match files.
 
-### "Share failed"
-- Save match first
-- Check ImageMagick: `php -m | grep imagick`
-- Verify `/data/cards/` exists and is writable
+### Can't access admin panel
+- Visit `/admin/` for first-time setup
+- Check that PHP sessions are enabled
+- Verify `/data/config.json` is writable
+- Password stored as bcrypt hash in config.json
+
+### Live sharing not working
+- Ensure `/data/live/` directory exists with 777 permissions
+- Check browser console for API errors
+- Verify match has been saved (has match ID)
+- Test the live URL in incognito mode
 
 ### PWA not installing
 - **Must use HTTPS** (required for PWA)
-- Icons must exist in `assets/icons/`
+- Icons must exist in `assets/icons/` (192x192, 512x512 PNG)
+- Check browser console for manifest errors
 
 ### Haptics not working
 - Enable vibration in phone settings
 - Must be on HTTPS
+- Some browsers don't support Vibration API
 
 ### Stats not updating
 - Hard refresh the page (pull down on mobile)
 - Clear browser cache
 - Try incognito/private mode
 
+### Match not auto-saving
+- Auto-save triggers on first ball recorded
+- Then saves every 6 balls (one over)
+- Check browser console for API errors
+- Verify CSRF token is being generated
+
 ### Wicket modal not appearing
 - Check browser console for errors (F12)
 - Ensure striker and bowler are selected
 - Refresh page if stuck
+
+### "Invalid CSRF token" errors
+- Session may have expired
+- Refresh the page to get new token
+- Check that PHP sessions are working
 
 ---
 
@@ -271,9 +339,13 @@ Customize in `api/lib/CardRenderer.php`:
 
 The app implements several security measures:
 
-- ✅ Input sanitization on save
-- ✅ File-based storage (no SQL injection risk)
-- ✅ Security headers in API responses
+- ✅ **CSRF Protection** - Token validation on all mutation endpoints
+- ✅ **Rate Limiting** - 60 requests/minute per IP (120/min for live updates)
+- ✅ **Input Sanitization** - ID validation and path traversal prevention
+- ✅ **Password Hashing** - bcrypt for admin authentication
+- ✅ **Session Management** - PHP sessions for admin access control
+- ✅ **File-based Storage** - No SQL injection risk
+- ✅ **Security Headers** - Implemented in all API responses
 
 ### Protecting the `/data/` Directory
 
@@ -306,22 +378,23 @@ location /data/ {
 #### For Shared Hosting:
 If you can't configure the web server:
 1. Keep `/data/` outside of your public web directory if possible
-2. Or rely on PHP's built-in file permissions (755/644)
+2. Or rely on PHP's built-in file permissions (777 for writing, but protect via other means)
 3. Consider adding password protection for production use
 
 ---
 
 ## 🏏 Perfect For
 
-- **Cricket clubs** building community through social sharing
-- **Pickup matches** in parks with instant scorecards
-- **School/college tournaments** with shareable results
-- **Social media content** that attracts new members
-- **Growing cricket awareness** through viral sharing
-- **Players who arrive late** - add them mid-match seamlessly
-- **Flexible team sizes** - manage players dynamically
+- **Cricket clubs** - Track all matches with admin panel and player stats
+- **Pickup matches** - Easy setup, score, and share with live viewer
+- **Tournaments** - Verify matches, manage player database
+- **Spectators** - Share live score URL for real-time updates
+- **Remote viewing** - Friends and family can watch scores live
+- **Players who arrive late** - Add them mid-match seamlessly
+- **Flexible team sizes** - Manage players dynamically
+- **Match archives** - All matches saved with verification system
 
-**Share beautiful scorecards, grow your club!** 🚀📱
+**Share live scores, build your cricket community!** 🚀📱
 
 ---
 
@@ -370,7 +443,21 @@ Need help? Check:
 
 ## 📝 Changelog
 
-### v2.1 (Latest)
+### v2.2 (Latest - November 2024)
+- ✨ **Live Score Sharing** - Real-time score viewer for spectators with auto-refresh
+- ✨ **Admin Panel** - Complete match and player management system
+- ✨ **Match Verification** - Mark matches as verified for official stats
+- ✨ **Auto-save System** - Saves on first ball, then every over
+- ✨ **Player Database** - Track player statistics across all matches
+- ✨ **Live Session Monitoring** - Admin view of active live sessions
+- 🐛 **Fixed match persistence** - Corrected data directory permissions
+- 🐛 **Fixed match completion** - Automatic redirect to summary page
+- 🐛 **Fixed Unicode display** - Replaced all Unicode with plain text
+- 🐛 **Fixed last wicket update** - Proper handling of final wicket
+- 🔒 **Enhanced Security** - CSRF protection, rate limiting, session management
+- 📱 **Improved mobile UX** - Better live viewer layout
+
+### v2.1
 - ✨ Added wicket type tracking (6 dismissal types)
 - ✨ Smart run-out logic with runs and batsman selection
 - ✨ Mid-innings player management (add/remove/retire)
@@ -386,9 +473,8 @@ Need help? Check:
 ### v2.0
 - Initial release with core scoring features
 - PWA support and offline functionality
-- Premium share cards with gradient design
 - Basic match statistics
 
 ---
 
-*StumpVision v2.1 - Score fast. Share beautiful. Play cricket.* 🏏
+*StumpVision v2.2 - Score fast. Share live. Play cricket.* 🏏
