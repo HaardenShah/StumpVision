@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+session_start();
 
 /**
  * StumpVision — api/matches.php
@@ -50,12 +51,64 @@ function safe_id(string $id): string
     // Remove any directory traversal attempts
     $id = basename($id);
     $id = str_replace(['..', '/', '\\'], '', $id);
-    
+
     // Only allow alphanumeric, underscore, and hyphen
     $id = preg_replace('/[^a-zA-Z0-9_-]/', '', $id);
-    
+
     // Limit length
     return substr($id, 0, 64);
+}
+
+/**
+ * Generate CSRF token for session
+ */
+function get_csrf_token(): string
+{
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['csrf_token'];
+}
+
+/**
+ * Validate CSRF token
+ */
+function validate_csrf_token(string $token): bool
+{
+    if (empty($_SESSION['csrf_token'])) {
+        return false;
+    }
+    return hash_equals($_SESSION['csrf_token'], $token);
+}
+
+/**
+ * Simple rate limiting - max 60 requests per minute per IP
+ */
+function check_rate_limit(): bool
+{
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $key = 'rate_limit_' . md5($ip);
+
+    if (!isset($_SESSION[$key])) {
+        $_SESSION[$key] = ['count' => 0, 'reset' => time() + 60];
+    }
+
+    $data = $_SESSION[$key];
+
+    // Reset if window expired
+    if (time() >= $data['reset']) {
+        $_SESSION[$key] = ['count' => 1, 'reset' => time() + 60];
+        return true;
+    }
+
+    // Check limit
+    if ($data['count'] >= 60) {
+        return false;
+    }
+
+    // Increment counter
+    $_SESSION[$key]['count']++;
+    return true;
 }
 
 /**
@@ -89,7 +142,20 @@ function validate_payload(array $payload): bool
 $action = $_GET['action'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
+// Check rate limit for all requests
+if (!check_rate_limit()) {
+    http_response_code(429);
+    echo json_encode(['ok' => false, 'err' => 'rate_limit_exceeded']);
+    exit;
+}
+
 try {
+    // GET CSRF TOKEN: Return token for client
+    if ($action === 'get-token' && $method === 'GET') {
+        echo json_encode(['ok' => true, 'token' => get_csrf_token()]);
+        exit;
+    }
+
     // LIST: Get all saved matches
     if ($action === 'list' && $method === 'GET') {
         $items = [];
@@ -171,16 +237,24 @@ try {
     // SAVE: Create or update match
     if ($action === 'save' && $method === 'POST') {
         $raw = file_get_contents('php://input');
-        
+
         if ($raw === false || empty($raw)) {
             echo json_encode(['ok' => false, 'err' => 'empty_request']);
             exit;
         }
-        
+
         $in = json_decode($raw, true);
-        
+
         if (!is_array($in) || !isset($in['payload'])) {
             echo json_encode(['ok' => false, 'err' => 'bad_payload']);
+            exit;
+        }
+
+        // Validate CSRF token
+        $token = $in['csrf_token'] ?? '';
+        if (!validate_csrf_token($token)) {
+            http_response_code(403);
+            echo json_encode(['ok' => false, 'err' => 'invalid_csrf_token']);
             exit;
         }
         
@@ -227,16 +301,24 @@ try {
     // DELETE: Remove match
     if ($action === 'delete' && $method === 'POST') {
         $raw = file_get_contents('php://input');
-        
+
         if ($raw === false) {
             echo json_encode(['ok' => false, 'err' => 'empty_request']);
             exit;
         }
-        
+
         $in = json_decode($raw, true);
-        
+
         if (!is_array($in)) {
             echo json_encode(['ok' => false, 'err' => 'bad_request']);
+            exit;
+        }
+
+        // Validate CSRF token
+        $token = $in['csrf_token'] ?? '';
+        if (!validate_csrf_token($token)) {
+            http_response_code(403);
+            echo json_encode(['ok' => false, 'err' => 'invalid_csrf_token']);
             exit;
         }
         
