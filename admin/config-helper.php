@@ -134,4 +134,50 @@ class Config
     {
         return self::set('live_score_enabled', $enabled);
     }
+
+    /**
+     * Get admin credentials
+     */
+    public static function getAdminCredentials(): array
+    {
+        $username = self::get('admin_username', 'admin');
+        $passwordHash = self::get('admin_password_hash', null);
+
+        // If no password hash exists, create default
+        if ($passwordHash === null) {
+            $passwordHash = password_hash('changeme', PASSWORD_BCRYPT);
+            self::set('admin_password_hash', $passwordHash);
+        }
+
+        return [
+            'username' => $username,
+            'password_hash' => $passwordHash
+        ];
+    }
+
+    /**
+     * Update admin password
+     */
+    public static function updateAdminPassword(string $newPassword): bool
+    {
+        $hash = password_hash($newPassword, PASSWORD_BCRYPT);
+        return self::set('admin_password_hash', $hash);
+    }
+
+    /**
+     * Update admin username
+     */
+    public static function updateAdminUsername(string $newUsername): bool
+    {
+        return self::set('admin_username', $newUsername);
+    }
+
+    /**
+     * Check if using default password
+     */
+    public static function isUsingDefaultPassword(): bool
+    {
+        $credentials = self::getAdminCredentials();
+        return password_verify('changeme', $credentials['password_hash']);
+    }
 }

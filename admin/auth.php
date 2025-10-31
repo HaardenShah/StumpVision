@@ -1,14 +1,11 @@
 <?php
 declare(strict_types=1);
 session_start();
+require_once __DIR__ . '/config-helper.php';
 
 /**
  * StumpVision Admin Authentication
  */
-
-// Configuration - CHANGE THESE!
-define('ADMIN_USERNAME', 'admin');
-define('ADMIN_PASSWORD_HASH', password_hash('changeme', PASSWORD_BCRYPT)); // Change this password!
 
 /**
  * Check if user is logged in
@@ -30,17 +27,48 @@ function requireAdmin(): void
 }
 
 /**
+ * Check if password change is required and redirect to settings
+ * Call this on pages other than settings.php
+ */
+function checkPasswordChangeRequired(): void
+{
+    if (mustChangePassword() && basename($_SERVER['PHP_SELF']) !== 'settings.php') {
+        header('Location: settings.php');
+        exit;
+    }
+}
+
+/**
  * Login admin user
  */
 function loginAdmin(string $username, string $password): bool
 {
-    if ($username === ADMIN_USERNAME && password_verify($password, ADMIN_PASSWORD_HASH)) {
+    $credentials = Config::getAdminCredentials();
+
+    if ($username === $credentials['username'] && password_verify($password, $credentials['password_hash'])) {
         $_SESSION['admin_logged_in'] = true;
         $_SESSION['admin_username'] = $username;
         $_SESSION['admin_login_time'] = time();
+        $_SESSION['must_change_password'] = Config::isUsingDefaultPassword();
         return true;
     }
     return false;
+}
+
+/**
+ * Check if admin must change password
+ */
+function mustChangePassword(): bool
+{
+    return isset($_SESSION['must_change_password']) && $_SESSION['must_change_password'] === true;
+}
+
+/**
+ * Clear password change requirement
+ */
+function clearPasswordChangeRequirement(): void
+{
+    $_SESSION['must_change_password'] = false;
 }
 
 /**

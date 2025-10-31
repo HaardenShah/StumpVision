@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once 'auth.php';
 requireAdmin();
+checkPasswordChangeRequired();
 
 $message = '';
 $messageType = '';

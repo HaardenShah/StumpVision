@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once 'auth.php';
 requireAdmin();
+checkPasswordChangeRequired();
 
 $liveDir = __DIR__ . '/../data/live';
 $message = '';
