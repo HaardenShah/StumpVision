@@ -542,6 +542,130 @@
         html += `</div></div>`;
       }
 
+      // First Innings Summary (only show if in second innings)
+      if (state.innings === 2 && state.firstInningsData) {
+        const inn1 = state.firstInningsData;
+        const inn1TeamName = state.setup?.[inn1.battingTeam]?.name || 'Team';
+        const inn1BowlingTeamName = state.setup?.[inn1.bowlingTeam]?.name || 'Team';
+        const inn1Score = `${inn1.score?.runs || 0}/${inn1.score?.wickets || 0}`;
+        const inn1Overs = `${inn1.overs || 0}.${inn1.balls || 0}`;
+        const inn1TotalBalls = (inn1.overs || 0) * 6 + (inn1.balls || 0);
+        const inn1RunRate = inn1TotalBalls > 0 ? ((inn1.score?.runs || 0) / (inn1TotalBalls / 6)).toFixed(2) : '0.00';
+
+        html += `<h2 class="section-header" style="margin-top: 48px; font-size: 24px;">First Innings Summary</h2>`;
+
+        html += `<div class="stats-grid">`;
+        html += `<div class="stat-card">`;
+        html += `<div class="stat-label">${escapeHtml(inn1TeamName)}</div>`;
+        html += `<div class="stat-value">${inn1Score}</div>`;
+        html += `<div class="stat-sub">${inn1Overs} overs</div>`;
+        html += `</div>`;
+        html += `<div class="stat-card">`;
+        html += `<div class="stat-label">Run Rate</div>`;
+        html += `<div class="stat-value">${inn1RunRate}</div>`;
+        html += `</div>`;
+        html += `</div>`;
+
+        // First Innings Batting Scorecard
+        const inn1BattingPlayers = state.setup?.[inn1.battingTeam]?.players || [];
+        const inn1Batters = Object.entries(inn1.batsmen || {}).filter(([name, stats]) => {
+          return inn1BattingPlayers.includes(name) && (stats.balls > 0 || stats.out);
+        });
+
+        if (inn1Batters.length > 0) {
+          html += `<h3 class="section-header">Batting - ${escapeHtml(inn1TeamName)}</h3>`;
+          html += `<div class="stats-table"><table>`;
+          html += `
+            <thead>
+              <tr>
+                <th>Batsman</th>
+                <th>R</th>
+                <th>B</th>
+                <th>4s</th>
+                <th>6s</th>
+                <th>SR</th>
+              </tr>
+            </thead>
+            <tbody>
+          `;
+
+          inn1Batters.forEach(([name, stats]) => {
+            const sr = stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : '0.0';
+            const status = stats.out ? `<span class="out-badge">OUT</span>` : '';
+            html += `
+              <tr>
+                <td>${escapeHtml(name)} ${status}</td>
+                <td><strong>${stats.runs}</strong></td>
+                <td>${stats.balls}</td>
+                <td>${stats.fours || 0}</td>
+                <td>${stats.sixes || 0}</td>
+                <td>${sr}</td>
+              </tr>
+            `;
+          });
+
+          html += `</tbody></table></div>`;
+        }
+
+        // First Innings Bowling Scorecard
+        const inn1BowlingPlayers = state.setup?.[inn1.bowlingTeam]?.players || [];
+        const inn1Bowlers = Object.entries(inn1.bowlers || {}).filter(([name, stats]) => {
+          return inn1BowlingPlayers.includes(name) && stats.balls > 0;
+        });
+
+        if (inn1Bowlers.length > 0) {
+          html += `<h3 class="section-header">Bowling - ${escapeHtml(inn1BowlingTeamName)}</h3>`;
+          html += `<div class="stats-table"><table>`;
+          html += `
+            <thead>
+              <tr>
+                <th>Bowler</th>
+                <th>O</th>
+                <th>R</th>
+                <th>W</th>
+                <th>Econ</th>
+                <th>Dots</th>
+              </tr>
+            </thead>
+            <tbody>
+          `;
+
+          inn1Bowlers.forEach(([name, stats]) => {
+            const overs = Math.floor(stats.balls / 6);
+            const balls = stats.balls % 6;
+            const econ = stats.balls > 0 ? (stats.runs / (stats.balls / 6)).toFixed(2) : '0.00';
+            html += `
+              <tr>
+                <td>${escapeHtml(name)}</td>
+                <td>${overs}.${balls}</td>
+                <td>${stats.runs}</td>
+                <td><strong>${stats.wickets || 0}</strong></td>
+                <td>${econ}</td>
+                <td>${stats.dots || 0}</td>
+              </tr>
+            `;
+          });
+
+          html += `</tbody></table></div>`;
+        }
+
+        // First Innings Extras
+        if (inn1.extras) {
+          const totalExtras = (inn1.extras.nb || 0) + (inn1.extras.wd || 0) + (inn1.extras.b || 0) + (inn1.extras.lb || 0);
+          if (totalExtras > 0) {
+            html += `<h3 class="section-header">Extras</h3>`;
+            html += `<div class="player-card">`;
+            html += `<div class="player-stats">`;
+            html += `<strong>Total: ${totalExtras}</strong> • `;
+            html += `No-balls: ${inn1.extras.nb || 0} • `;
+            html += `Wides: ${inn1.extras.wd || 0} • `;
+            html += `Byes: ${inn1.extras.b || 0} • `;
+            html += `Leg-byes: ${inn1.extras.lb || 0}`;
+            html += `</div></div>`;
+          }
+        }
+      }
+
       container.innerHTML = html;
     }
 
