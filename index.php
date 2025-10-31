@@ -614,46 +614,46 @@
         console.error('Missing striker or bowler');
         return;
       }
-      
+
       haptic(runs === 4 || runs === 6 ? 'success' : 'light');
-      
+
       // Track dot ball
       if (runs === 0) {
         matchState.bowlers[matchState.bowler].dots += 1;
       }
-      
+
       // Update batsman stats
       const previousRuns = matchState.batsmen[matchState.striker].runs;
       matchState.batsmen[matchState.striker].runs += runs;
       matchState.batsmen[matchState.striker].balls += 1;
       if (runs === 4) matchState.batsmen[matchState.striker].fours += 1;
       if (runs === 6) matchState.batsmen[matchState.striker].sixes += 1;
-      
+
       // Check for milestones (50, 100)
       checkMilestone(matchState.striker, previousRuns, matchState.batsmen[matchState.striker].runs);
-      
+
       matchState.bowlers[matchState.bowler].runs += runs;
       matchState.bowlers[matchState.bowler].balls += 1;
-      
+
       matchState.score.runs += runs;
       matchState.balls += 1;
-      
+
       // Update partnership
       matchState.currentPartnership.runs += runs;
       matchState.currentPartnership.balls += 1;
-      
+
       if (runs % 2 === 1) {
         [matchState.striker, matchState.nonStriker] = [matchState.nonStriker, matchState.striker];
       }
-      
+
       matchState.thisOver.push(runs === 0 ? getBallEmoji() : runs.toString());
-      
+
       if (matchState.balls === 6) {
         completeOver();
       }
-      
+
       matchState.freeHit = false;
-      
+
       addToBallHistory({
         type: 'legal',
         runs: runs,
@@ -661,9 +661,13 @@
         nonStriker: matchState.nonStriker,
         bowler: matchState.bowler
       });
-      
+
       console.log('Match state after ball:', matchState);
       updateDisplay();
+
+      // Auto-save: On first ball, save to generate match ID immediately
+      // Then continue saving periodically to keep match data updated
+      autoSaveMatch();
     }
 
     function showNoBallModal() {
@@ -687,13 +691,14 @@
 
       matchState.thisOver.push(`${batRuns}+NB`);
       matchState.freeHit = true;
-      
+
       if (batRuns % 2 === 1) {
         [matchState.striker, matchState.nonStriker] = [matchState.nonStriker, matchState.striker];
       }
-      
+
       addToBallHistory({ type: 'noball', runs: batRuns, striker: matchState.striker, bowler: matchState.bowler });
       updateDisplay();
+      autoSaveMatch();
     }
 
     function showWideModal() {
@@ -703,14 +708,15 @@
     function processWide(totalRuns) {
       closeModal('wideModal');
       haptic('light');
-      
+
       matchState.bowlers[matchState.bowler].runs += totalRuns;
       matchState.score.runs += totalRuns;
       matchState.extras.wd += 1;  // Always count as 1 wide in extras
       matchState.thisOver.push(`${totalRuns}WD`);
-      
+
       addToBallHistory({ type: 'wide', runs: totalRuns, bowler: matchState.bowler });
       updateDisplay();
+      autoSaveMatch();
     }
 
     function showByeModal() {
@@ -719,25 +725,26 @@
 
     function processBye(runs) {
       closeModal('byeModal');
-      
+
       matchState.batsmen[matchState.striker].balls += 1;
       matchState.bowlers[matchState.bowler].balls += 1;
       matchState.score.runs += runs;
       matchState.extras.b += runs;
       matchState.balls += 1;
-      
+
       if (runs % 2 === 1) {
         [matchState.striker, matchState.nonStriker] = [matchState.nonStriker, matchState.striker];
       }
-      
+
       matchState.thisOver.push(`${runs}B`);
-      
+
       if (matchState.balls === 6) {
         completeOver();
       }
-      
+
       addToBallHistory({ type: 'bye', runs: runs, bowler: matchState.bowler });
       updateDisplay();
+      autoSaveMatch();
     }
 
     function showLegByeModal() {
@@ -746,25 +753,26 @@
 
     function processLegBye(runs) {
       closeModal('legByeModal');
-      
+
       matchState.batsmen[matchState.striker].balls += 1;
       matchState.bowlers[matchState.bowler].balls += 1;
       matchState.score.runs += runs;
       matchState.extras.lb += runs;
       matchState.balls += 1;
-      
+
       if (runs % 2 === 1) {
         [matchState.striker, matchState.nonStriker] = [matchState.nonStriker, matchState.striker];
       }
-      
+
       matchState.thisOver.push(`${runs}LB`);
-      
+
       if (matchState.balls === 6) {
         completeOver();
       }
-      
+
       addToBallHistory({ type: 'legbye', runs: runs, bowler: matchState.bowler });
       updateDisplay();
+      autoSaveMatch();
     }
 
     function showWicketModal() {
@@ -1739,11 +1747,47 @@
       }
     }
 
-    async function saveMatch() {
+    // Auto-save state tracker
+    let lastAutoSaveTime = 0;
+    let totalBallsRecorded = 0;
+
+    async function autoSaveMatch() {
+      totalBallsRecorded++;
+
+      // Save on first ball to generate match ID immediately
+      if (!matchState.saveId) {
+        console.log('First ball - auto-saving to generate match ID');
+        await saveMatch(true);
+        return;
+      }
+
+      // After first save, save every over (every 6 balls) to keep data updated
+      if (totalBallsRecorded % 6 === 0) {
+        const now = Date.now();
+        // Throttle: don't save more than once every 3 seconds to avoid rate limiting
+        if (now - lastAutoSaveTime > 3000) {
+          console.log('Auto-saving match after over completion');
+          lastAutoSaveTime = now;
+          await saveMatch(true);
+        }
+      }
+    }
+
+    async function saveMatch(silent = false) {
       const statusEl = document.getElementById('saveStatus');
-      statusEl.textContent = 'Saving...';
-      
+      if (!silent) {
+        statusEl.textContent = 'Saving...';
+      }
+
       try {
+        // Fetch CSRF token
+        const tokenResponse = await fetch('api/matches.php?action=get-token');
+        const tokenResult = await tokenResponse.json();
+
+        if (!tokenResult.ok) {
+          throw new Error('Failed to get CSRF token');
+        }
+
         const payload = {
           meta: {
             title: `${matchState.setup.teamA.name} vs ${matchState.setup.teamB.name}`,
@@ -1757,25 +1801,35 @@
           ],
           innings: buildInningsData()
         };
-        
+
         const response = await fetch('api/matches.php?action=save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: matchState.saveId, payload: payload })
+          body: JSON.stringify({ id: matchState.saveId, payload: payload, csrf_token: tokenResult.token })
         });
-        
+
         const result = await response.json();
         if (result.ok) {
           matchState.saveId = result.id;
-          statusEl.textContent = `Saved! ID: ${result.id}`;
-          statusEl.style.color = 'var(--success)';
+          if (!silent) {
+            statusEl.textContent = `Saved! ID: ${result.id}`;
+            statusEl.style.color = 'var(--success)';
+          }
+          return true;
         } else {
-          statusEl.textContent = 'Save failed';
-          statusEl.style.color = 'var(--danger)';
+          if (!silent) {
+            statusEl.textContent = 'Save failed: ' + (result.err || 'Unknown error');
+            statusEl.style.color = 'var(--danger)';
+          }
+          return false;
         }
       } catch (err) {
-        statusEl.textContent = 'Save error: ' + err.message;
-        statusEl.style.color = 'var(--danger)';
+        console.error('Save error:', err);
+        if (!silent) {
+          statusEl.textContent = 'Save error: ' + err.message;
+          statusEl.style.color = 'var(--danger)';
+        }
+        return false;
       }
     }
 
@@ -1837,12 +1891,18 @@
     }
 
     async function shareRecap() {
-      if (!matchState.saveId) {
-        alert('Please save the match first before sharing!');
-        return;
-      }
-      
       const statusEl = document.getElementById('saveStatus');
+
+      // If match not yet saved, save it first to generate match ID
+      if (!matchState.saveId) {
+        statusEl.textContent = 'Saving match...';
+        const saved = await saveMatch(false);
+        if (!saved) {
+          alert('Failed to save match. Cannot generate share card.');
+          return;
+        }
+      }
+
       statusEl.textContent = 'Generating share card...';
       
       try {
@@ -1899,33 +1959,26 @@
 
     async function completeMatch() {
       try {
-        const payload = {
-          meta: {
-            title: `${matchState.setup.teamA.name} vs ${matchState.setup.teamB.name}`,
-            oversPerSide: matchState.setup.oversPerInnings,
-            ballsPerOver: 6,
-            wicketsLimit: matchState.setup.wicketsLimit
-          },
-          teams: [
-            { name: matchState.setup.teamA.name, players: matchState.setup.teamA.players },
-            { name: matchState.setup.teamB.name, players: matchState.setup.teamB.players }
-          ],
-          innings: buildInningsData()
-        };
+        // Use the saveMatch function which handles CSRF token
+        const saved = await saveMatch(false);
 
-        const response = await fetch('api/matches.php?action=save', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: matchState.saveId, payload: payload })
-        });
-
-        const result = await response.json();
-
-        if (result.ok) {
-          matchState.saveId = result.id;
+        if (saved) {
+          const payload = {
+            meta: {
+              title: `${matchState.setup.teamA.name} vs ${matchState.setup.teamB.name}`,
+              oversPerSide: matchState.setup.oversPerInnings,
+              ballsPerOver: 6,
+              wicketsLimit: matchState.setup.wicketsLimit
+            },
+            teams: [
+              { name: matchState.setup.teamA.name, players: matchState.setup.teamA.players },
+              { name: matchState.setup.teamB.name, players: matchState.setup.teamB.players }
+            ],
+            innings: buildInningsData()
+          };
 
           localStorage.setItem('stumpvision_completed_match', JSON.stringify({
-            saveId: result.id,
+            saveId: matchState.saveId,
             payload: payload
           }));
 
@@ -1949,9 +2002,14 @@
 
     async function startLiveSharing() {
       try {
+        // If match not yet saved, save it first to generate match ID
         if (!matchState.saveId) {
-          showToast('Please save the match first before starting live sharing', 'error');
-          return;
+          showToast('Saving match...', 'info');
+          const saved = await saveMatch(false);
+          if (!saved) {
+            showToast('Failed to save match. Cannot start live sharing.', 'error');
+            return;
+          }
         }
 
         const response = await fetch('api/live.php?action=create', {
