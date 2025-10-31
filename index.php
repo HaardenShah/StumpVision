@@ -540,7 +540,8 @@
       partnerships: [],
       currentPartnership: { runs: 0, balls: 0, batsman1: null, batsman2: null },
       wicketsFallen: [],
-      milestones: []
+      milestones: [],
+      matchCompleted: false // Flag to indicate match is finished
     };
 
     function addToBallHistory(entry) {
@@ -898,8 +899,10 @@
         matchState.thisOver.push(runs.toString());
       }
       matchState.thisOver.push('W');
-      
+
       if (matchState.score.wickets >= matchState.setup.wicketsLimit) {
+        updateDisplay();
+        autoSaveMatch(); // Save the last wicket before completing innings
         handleInningsComplete();
         return;
       }
@@ -968,11 +971,13 @@
       }
       
       matchState.thisOver.push('W');
-      
+
       // Reset free hit after wicket
       matchState.freeHit = false;
-      
+
       if (matchState.score.wickets >= matchState.setup.wicketsLimit) {
+        updateDisplay();
+        autoSaveMatch(); // Save the last wicket before completing innings
         handleInningsComplete();
         return;
       }
@@ -1098,8 +1103,10 @@
       matchState.overs += 1;
       matchState.balls = 0;
       matchState.thisOver = [];
-      
+
       if (matchState.overs >= matchState.setup.oversPerInnings) {
+        updateDisplay();
+        autoSaveMatch(); // Save before completing innings
         handleInningsComplete();
         return;
       }
@@ -1979,6 +1986,9 @@
 
     async function completeMatch() {
       try {
+        // Mark match as completed so live viewers can redirect
+        matchState.matchCompleted = true;
+
         // Use the saveMatch function which handles CSRF token
         const saved = await saveMatch(false);
 
@@ -2002,7 +2012,7 @@
             payload: payload
           }));
 
-          alert('🏆 Match Complete!\n\nMatch saved successfully. Redirecting to summary...');
+          alert('Match Complete!\n\nMatch saved successfully. Redirecting to summary...');
 
           window.location.href = 'summary.php';
         } else {
