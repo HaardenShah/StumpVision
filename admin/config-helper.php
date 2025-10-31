@@ -8,7 +8,9 @@ declare(strict_types=1);
 
 class Config
 {
-    private static string $configFile = __DIR__ . '/../data/config.json';
+    // SECURITY: Store config outside data/ directory with restrictive permissions
+    // config.json contains admin password hash and should not be world-readable
+    private static string $configFile = __DIR__ . '/../config/config.json';
     private static ?array $cache = null;
 
     /**
@@ -84,24 +86,29 @@ class Config
     }
 
     /**
-     * Create default config file
+     * Create default config file with secure permissions
      */
     private static function createDefaultConfig(): void
     {
         $dir = dirname(self::$configFile);
         if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
+            mkdir($dir, 0750, true); // Only owner and group can access
         }
 
         $defaults = self::getDefaults();
-        file_put_contents(
+        $result = file_put_contents(
             self::$configFile,
             json_encode($defaults, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
         );
+
+        // Set restrictive permissions: only owner can read/write
+        if ($result !== false) {
+            chmod(self::$configFile, 0600);
+        }
     }
 
     /**
-     * Save config to file
+     * Save config to file with secure permissions
      */
     private static function saveConfig(array $config): bool
     {
@@ -112,6 +119,8 @@ class Config
 
         $result = file_put_contents(self::$configFile, $json);
         if ($result !== false) {
+            // Ensure file has restrictive permissions (600 = only owner can read/write)
+            chmod(self::$configFile, 0600);
             self::$cache = $config; // Update cache
             return true;
         }

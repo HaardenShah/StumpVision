@@ -75,12 +75,23 @@ Perfect for pickup cricket, club matches, and growing your cricket community! �
    ```bash
    # Find your web server user (usually www-data, apache, or nginx)
    # Then set ownership and permissions:
+
+   # Data directory (for match files)
    sudo chown -R www-data:www-data data/
    sudo mkdir -p data/live
    sudo chmod 755 data/ data/live/
+
+   # Config directory (for admin password - MORE RESTRICTIVE)
+   sudo chown -R www-data:www-data config/
+   sudo chmod 750 config/
+   # config.json will be created with 600 permissions automatically
    ```
 
-   **Security Note**: Never use 777 permissions in production! Instead, change ownership to your web server user so only the web server can write files.
+   **Security Notes**:
+   - Never use 777 permissions in production!
+   - `config/` has 750 (owner + group only, no public access)
+   - `config.json` has 600 (only web server can read password hash)
+   - `data/` has 755 (public can list, only owner can write)
 
 3. **Configure admin access**: Visit `https://yourdomain.com/admin/` and set up password on first run
 4. **Create app icons** (192x192 and 512x512 PNG - place in `assets/icons/`)
@@ -257,8 +268,13 @@ Assets:
 Data Storage:
 ├── data/
 │   ├── *.json         - Saved match files (auto-generated)
-│   ├── live/          - Live session state files
-│   └── config.json    - Admin settings (password hash)
+│   └── live/          - Live session state files
+
+Configuration (Secure):
+├── config/
+│   ├── config.json         - Admin settings with password hash (600 perms)
+│   ├── config.example.json - Template configuration file
+│   └── .gitignore          - Prevents committing password hash
 ```
 
 ---
@@ -315,9 +331,14 @@ sudo chmod 755 /path/to/stumpvision/data/live/
 ### Can't access admin panel
 - Visit `/admin/` for first-time setup
 - Check that PHP sessions are enabled
-- Verify `/data/config.json` is writable by web server user
-- Password stored as bcrypt hash in config.json
-- Ensure `data/` directory is owned by web server user
+- Verify `/config/config.json` is writable by web server user
+- Ensure `/config/` directory exists and has proper permissions:
+  ```bash
+  sudo chown -R www-data:www-data config/
+  sudo chmod 750 config/
+  ```
+- Password stored as bcrypt hash in config/config.json
+- Default password is `changeme` - change it immediately!
 
 ### Live sharing not working
 - Ensure `/data/live/` directory exists and is owned by web server user
@@ -410,16 +431,32 @@ If you can't configure the web server:
 
 **Secure Setup** (Recommended):
 ```bash
-# Directories: 755 (rwxr-xr-x)
+# Config directory: 750 (rwxr-x---)
+- Owner (www-data) can read/write/execute
+- Group can read/list
+- Others have NO ACCESS (password hash protected)
+
+# Config file: 600 (rw-------)
+- Owner (www-data) can read/write
+- NO ONE ELSE can read the password hash
+
+# Data directories: 755 (rwxr-xr-x)
 - Owner (www-data) can read/write/execute
 - Others can only read/list directory contents
 
-# Files: 644 (rw-r--r--)
+# Match files: 644 (rw-r--r--)
 - Owner (www-data) can read/write
 - Others can only read
 
 # This prevents unauthorized users from modifying your data
+# or accessing sensitive admin credentials
 ```
+
+**Why Separate Config from Data?**
+- `config/config.json` contains admin password hash (SENSITIVE)
+- `data/*.json` contains match data (less sensitive, but still protected)
+- Separating them allows different permission levels
+- Even if data directory is compromised, admin credentials remain secure
 
 **Insecure Setup** (Never use in production):
 ```bash
@@ -427,6 +464,7 @@ If you can't configure the web server:
 - Anyone on the server can delete/modify match files
 - Malicious users could corrupt your database
 - Attackers could inject malicious data
+- Attackers could steal/replace admin password hash
 ```
 
 ---
@@ -502,7 +540,9 @@ Need help? Check:
 - 🐛 **Fixed match completion** - Automatic redirect to summary page
 - 🐛 **Fixed Unicode display** - Replaced all Unicode with plain text
 - 🐛 **Fixed last wicket update** - Proper handling of final wicket
-- 🔒 **Enhanced Security** - CSRF protection, rate limiting, session management
+- 🔒 **CRITICAL SECURITY FIX** - Moved config with password hash to separate directory with 600 permissions
+- 🔒 **Enhanced Security** - CSRF protection, rate limiting, session management, secure file permissions
+- 🔒 **Permission Hardening** - Replaced 777 with proper ownership-based security (755 data, 750 config)
 - 📱 **Improved mobile UX** - Better live viewer layout
 
 ### v2.1
