@@ -23,21 +23,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['csrf_token'])) {
                 $message = 'Player name is required';
                 $messageType = 'error';
             } else {
-                $response = file_get_contents('http://localhost/api/players.php?action=add', false, stream_context_create([
-                    'http' => [
-                        'method' => 'POST',
-                        'header' => 'Content-Type: application/json',
-                        'content' => json_encode(['name' => $name, 'team' => $team])
-                    ]
-                ]));
+                // Load current players
+                $playersFile = __DIR__ . '/../data/players.json';
+                $players = [];
+                if (is_file($playersFile)) {
+                    $players = json_decode(file_get_contents($playersFile), true) ?: [];
+                }
 
-                $result = json_decode($response, true);
-                if ($result['ok'] ?? false) {
-                    $message = 'Player registered successfully';
-                    $messageType = 'success';
-                } else {
-                    $message = 'Failed to register player: ' . ($result['err'] ?? 'unknown error');
+                // Generate player ID
+                $playerId = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $name));
+
+                // Check if player already exists
+                if (isset($players[$playerId])) {
+                    $message = 'Player already exists';
                     $messageType = 'error';
+                } else {
+                    // Add new player
+                    $players[$playerId] = [
+                        'id' => $playerId,
+                        'name' => $name,
+                        'team' => $team,
+                        'registered_at' => time(),
+                        'registered_by' => $_SESSION['admin_username'] ?? 'admin'
+                    ];
+
+                    // Save players
+                    $dataDir = __DIR__ . '/../data';
+                    if (!is_dir($dataDir)) {
+                        mkdir($dataDir, 0755, true);
+                    }
+
+                    if (file_put_contents($playersFile, json_encode($players, JSON_PRETTY_PRINT)) !== false) {
+                        $message = 'Player registered successfully';
+                        $messageType = 'success';
+                    } else {
+                        $message = 'Failed to save player data';
+                        $messageType = 'error';
+                    }
                 }
             }
         }

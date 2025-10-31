@@ -44,25 +44,9 @@ Perfect for pickup cricket, club matches, and growing your cricket community! �
 ✅ **Fullscreen mode** - True fullscreen on mobile devices  
 
 ### Social Sharing
-✅ **Save to server** - Persistent match storage with unique IDs
-✅ **Premium share cards** - Beautiful gradient scorecards with modern design
-✅ **Social media ready** - One-tap share to Instagram, WhatsApp, Twitter
-✅ **Live score sharing** - Generate shareable links for real-time score viewing (optional)
-
-### Admin Backend
-✅ **Match management** - Review, verify, and delete matches
-✅ **Player registry** - Register official players to track career statistics
-✅ **Aggregate stats** - Career statistics across all verified matches
-✅ **Live session control** - Manage active live score sharing sessions
-✅ **Verification system** - Only verified matches count toward player stats
-
-### Security & Accessibility
-✅ **CSRF protection** - Token-based security on all state-changing operations
-✅ **Rate limiting** - Prevent API abuse (60 req/min)
-✅ **XSS prevention** - Safe DOM manipulation throughout
-✅ **Screen reader support** - Full ARIA labels and live regions
-✅ **Keyboard navigation** - ESC to close modals, focus management
-✅ **Toast notifications** - Modern, accessible notifications instead of alerts
+✅ **Save to server** - Persistent match storage with unique IDs  
+✅ **Premium share cards** - Beautiful gradient scorecards with modern design  
+✅ **Social media ready** - One-tap share to Instagram, WhatsApp, Twitter  
 
 ---
 
@@ -71,30 +55,15 @@ Perfect for pickup cricket, club matches, and growing your cricket community! �
 ### Installation
 
 1. **Upload files** to your web server
-2. **Set permissions**: `chmod 755 data data/cards data/live`
+2. **Set permissions**: `chmod 755 data data/cards`
 3. **Create app icons** (192x192 and 512x512 PNG - see ICONS_README.md)
-4. **Configure admin** (see Admin Setup below)
-5. **Visit**: `https://yourdomain.com/setup.php`
+4. **Visit**: `https://yourdomain.com/setup.php`
 
 ### Requirements
 - **PHP 7.4+** (8.x recommended)
 - **Write permissions** on `/data/` directory
 - **ImageMagick extension** (for share cards)
 - **FFmpeg** (optional - for video cards)
-- **Session support** (for admin authentication)
-
-### Admin Setup
-
-The admin backend is included and ready to use:
-
-1. **Access admin panel**: `https://yourdomain.com/admin/`
-2. **Login with default credentials**:
-   - Username: `admin`
-   - Password: `changeme`
-3. **Change password immediately** - You'll be prompted to change the default password in the Settings page after first login
-4. **Configure features** - Use the Settings page to enable/disable live score sharing and other features
-
-See `admin/README.md` for full admin documentation.
 
 ---
 
@@ -152,26 +121,6 @@ Perfect for **growing your cricket club** through viral social sharing! 📱✨
 2. Click **"Save Match"** (generates unique ID)
 3. Click **"Share Score Card"** (creates beautiful graphic)
 4. Share to social media or download
-
-### 6. Live Score Sharing (Optional)
-1. Enable in **Admin Settings**: Login to admin panel, go to Settings, enable "Live Score Sharing"
-2. Go to **Settings** tab in the main app
-3. Click **"Start Live Sharing"**
-4. Copy generated link
-5. Share link with viewers
-6. Scores update automatically every 5 seconds
-
-Viewers can watch live at: `yourdomain.com/live.php?id=<session_id>`
-
-### 7. Admin Management
-1. Access admin panel: `yourdomain.com/admin/`
-2. **Register Players** - Add official players to track career stats
-3. **Review Matches** - View all saved matches
-4. **Verify Matches** - Mark legitimate matches (only verified matches count toward stats)
-5. **View Statistics** - See aggregate player statistics across all verified matches
-6. **Manage Live Sessions** - Control active live score sharing
-
-**Why verify matches?** Only verified matches with registered players count toward aggregate statistics. This prevents stat manipulation from random visitors.
 
 ---
 
@@ -243,50 +192,25 @@ Viewers can watch live at: `yourdomain.com/live.php?id=<session_id>`
 - **Storage**: localStorage (client) + `/data/*.json` (server)
 - **Offline**: Service Worker + Cache API
 - **Share Cards**: ImageMagick + modern gradient design
-- **Authentication**: Session-based with bcrypt password hashing
-- **Security**: CSRF protection, rate limiting, XSS prevention
 
 ### File Structure
 ```
 Core App (v2):
-├── index.php          - Main scoring app (HTML + CSS + JS)
-├── setup.php          - Match setup (HTML + CSS + JS)
-├── live.php           - Live score viewer (real-time updates)
-└── summary.php        - Match summary view
+├── index.php          - Main app (all-in-one: HTML + CSS + JS)
+├── setup.php          - Match setup (all-in-one: HTML + CSS + JS)
 
-Admin Backend:
-├── admin/
-│   ├── index.php          - Dashboard
-│   ├── login.php          - Authentication
-│   ├── matches.php        - Match management & verification
-│   ├── players.php        - Player registry
-│   ├── stats.php          - Aggregate statistics
-│   ├── live-sessions.php  - Live session management
-│   ├── settings.php       - Admin settings & password change
-│   ├── auth.php           - Authentication system
-│   ├── config-helper.php  - Configuration management
-│   ├── styles.css         - Admin UI styling
-│   └── README.md          - Admin documentation
-
-Backend APIs:
-├── api/
-│   ├── matches.php    - Match CRUD (with CSRF + rate limiting)
-│   ├── players.php    - Player registry API
-│   ├── live.php       - Live score sharing API
-│   ├── renderCard.php - Share card generation
-│   └── lib/           - Rendering libraries
+Backend API:
+├── api/matches.php    - CRUD for match data
+├── api/renderCard.php - Generate premium share graphics
+└── api/lib/           - Image rendering with modern design
 
 PWA:
 ├── manifest.webmanifest - App metadata
 └── service-worker.js    - Offline caching
 
-Data Storage:
-├── data/
-│   ├── *.json         - Saved matches
-│   ├── players.json   - Registered players
-│   ├── config.json    - Admin settings & credentials (gitignored)
-│   ├── live/          - Live session data
-│   └── cards/         - Generated share cards (PNG/MP4)
+Data:
+├── data/*.json        - Saved matches
+└── data/cards/        - Generated share cards (PNG/MP4)
 ```
 
 ---
@@ -345,26 +269,11 @@ Customize in `api/lib/CardRenderer.php`:
 
 ## 🔐 Security
 
-The app implements comprehensive security measures:
+The app implements several security measures:
 
-**API Security:**
-- ✅ CSRF token protection on all POST requests
-- ✅ Rate limiting (60 requests/min per IP)
-- ✅ Input sanitization and validation
-- ✅ XSS prevention with safe DOM manipulation
-- ✅ Security headers (X-Frame-Options, CSP, etc.)
-
-**Admin Security:**
-- ✅ Session-based authentication
-- ✅ Bcrypt password hashing
-- ✅ Admin-only API endpoints
-- ✅ CSRF protection on all admin forms
-- ✅ Secure session timeout
-
-**Data Protection:**
+- ✅ Input sanitization on save
 - ✅ File-based storage (no SQL injection risk)
-- ✅ Player registry prevents stat manipulation
-- ✅ Match verification system for data integrity
+- ✅ Security headers in API responses
 
 ### Protecting the `/data/` Directory
 
@@ -404,26 +313,15 @@ If you can't configure the web server:
 
 ## 🏏 Perfect For
 
-**Public Cricket:**
 - **Cricket clubs** building community through social sharing
 - **Pickup matches** in parks with instant scorecards
 - **School/college tournaments** with shareable results
 - **Social media content** that attracts new members
 - **Growing cricket awareness** through viral sharing
-
-**League & Tournament Management:**
-- **Track player statistics** across entire seasons
-- **Verify legitimate matches** to prevent stat manipulation
-- **Aggregate career stats** for all registered players
-- **Live score sharing** for spectators and families
-- **Professional statistics** without expensive software
-
-**Flexible Features:**
 - **Players who arrive late** - add them mid-match seamlessly
 - **Flexible team sizes** - manage players dynamically
-- **Admin control** - full oversight of all matches and stats
 
-**Share beautiful scorecards, track real stats, grow your club!** 🚀📱
+**Share beautiful scorecards, grow your club!** 🚀📱
 
 ---
 
@@ -462,66 +360,17 @@ Designed for pickup cricket players who want:
 ## 🆘 Support
 
 Need help? Check:
-1. `admin/README.md` - Admin backend documentation
-2. `DEPLOYMENT.md` - Detailed setup guide
-3. `ICONS_README.md` - Icon creation guide
-4. `CODE_REVIEW.md` - Known issues and fixes (if available)
-5. PHP error logs: `/var/log/php_errors.log`
-6. Browser console for JavaScript errors
-
-**Admin Issues:**
-- Can't login? Check session support and file permissions
-- Forced to change password? This is a security feature on first login with default credentials
-- Stats not showing? Ensure matches are verified and players registered
-- Live sharing not working? Enable in Admin Settings page
+1. `DEPLOYMENT.md` - Detailed setup guide
+2. `ICONS_README.md` - Icon creation guide
+3. `CODE_REVIEW.md` - Known issues and fixes (if available)
+4. PHP error logs: `/var/log/php_errors.log`
+5. Browser console for JavaScript errors
 
 ---
 
 ## 📝 Changelog
 
-### v2.2 (Latest)
-**🔐 Security & Accessibility**
-- ✨ Added CSRF token protection to all API endpoints
-- ✨ Implemented rate limiting (60 requests/min)
-- ✨ Fixed XSS vulnerabilities with safe DOM manipulation
-- ✨ Added comprehensive ARIA labels for screen readers
-- ✨ Implemented keyboard navigation (ESC to close modals)
-- ✨ Added aria-live regions for score announcements
-- 🎨 Modern toast notification system (replaced alerts)
-- 🎨 Modal focus management and trapping
-
-**👨‍💼 Admin Backend**
-- ✨ Complete admin dashboard with authentication
-- ✨ Password change UI in Settings (no file editing required)
-- ✨ First-login password change enforcement for security
-- ✨ Settings page for feature toggles (live sharing, etc.)
-- ✨ Match management interface (view, verify, delete)
-- ✨ Player registry system to track official players
-- ✨ Aggregate statistics across all verified matches
-- ✨ Live session management interface
-- ✨ Match verification system for stat integrity
-- 🔒 Session-based auth with bcrypt password hashing
-- 🔒 Credentials stored securely in config.json (hashed)
-
-**🔴 Live Score Sharing**
-- ✨ Real-time live score sharing with generated links
-- ✨ Auto-updating live viewer page (3-second refresh)
-- ✨ Beautiful gradient live score display
-- ✨ Session management and ownership controls
-- ⚙️ Disabled by default, easily enabled via config
-
-**🐛 Bug Fixes**
-- Fixed run-out batsman positioning logic
-- Fixed partnership stats not updating for run-outs
-- Improved cricket logic accuracy throughout
-
-**📊 Player Stat Tracking**
-- Only verified matches count toward stats
-- Only registered players are tracked
-- Prevents stat manipulation from public use
-- Career statistics across all verified matches
-
-### v2.1
+### v2.1 (Latest)
 - ✨ Added wicket type tracking (6 dismissal types)
 - ✨ Smart run-out logic with runs and batsman selection
 - ✨ Mid-innings player management (add/remove/retire)
@@ -542,4 +391,4 @@ Need help? Check:
 
 ---
 
-*StumpVision v2.2 - Score fast. Share beautiful. Track stats. Grow your club.* 🏏
+*StumpVision v2.1 - Score fast. Share beautiful. Play cricket.* 🏏
