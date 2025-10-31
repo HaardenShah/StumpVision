@@ -6,5 +6,7 @@
     "max_matches_per_day": 100,
     "require_admin_verification": true,
     "auto_cleanup_days": 365,
-    "enable_debug_mode": false
+    "enable_debug_mode": false,
+    "_comment": "Password hash will be generated automatically on first admin login",
+    "_security_note": "This directory should have 750 permissions and config.json should have 600 permissions"
 }

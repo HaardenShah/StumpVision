@@ -1,0 +1,5 @@
+# Ignore actual config file (contains password hash)
+config.json
+
+# Keep example file in repo
+!config.example.json
