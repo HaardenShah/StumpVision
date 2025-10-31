@@ -169,7 +169,7 @@ if (isAdminLoggedIn()) {
             <strong>Default credentials:</strong><br>
             Username: admin<br>
             Password: changeme<br><br>
-            <strong>⚠️ Change these in admin/auth.php!</strong>
+            <strong>⚠️ You will be prompted to change the default password after logging in.</strong>
         </div>
     </div>
 </body>

@@ -7,8 +7,45 @@ requireAdmin();
 $message = '';
 $messageType = '';
 
+// Handle password change
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'change_password') {
+    if (!validateAdminCsrfToken($_POST['csrf_token'])) {
+        $message = 'Invalid CSRF token';
+        $messageType = 'error';
+    } else {
+        $currentPassword = $_POST['current_password'] ?? '';
+        $newPassword = $_POST['new_password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
+
+        // Validate current password
+        $credentials = Config::getAdminCredentials();
+        if (!password_verify($currentPassword, $credentials['password_hash'])) {
+            $message = 'Current password is incorrect';
+            $messageType = 'error';
+        } elseif (strlen($newPassword) < 8) {
+            $message = 'New password must be at least 8 characters';
+            $messageType = 'error';
+        } elseif ($newPassword !== $confirmPassword) {
+            $message = 'New passwords do not match';
+            $messageType = 'error';
+        } elseif ($newPassword === 'changeme') {
+            $message = 'Please choose a different password than the default';
+            $messageType = 'error';
+        } else {
+            if (Config::updateAdminPassword($newPassword)) {
+                clearPasswordChangeRequirement();
+                $message = 'Password changed successfully!';
+                $messageType = 'success';
+            } else {
+                $message = 'Failed to update password';
+                $messageType = 'error';
+            }
+        }
+    }
+}
+
 // Handle settings update
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['csrf_token'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['csrf_token']) && !isset($_POST['action'])) {
     if (!validateAdminCsrfToken($_POST['csrf_token'])) {
         $message = 'Invalid CSRF token';
         $messageType = 'error';
@@ -150,6 +187,22 @@ $config = Config::getAll();
         .btn-save:hover {
             transform: translateY(-2px);
         }
+        .alert {
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 2px solid;
+        }
+        .alert-success {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: #22c55e;
+            color: #22c55e;
+        }
+        .alert-error {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: #ef4444;
+            color: #ef4444;
+        }
     </style>
 </head>
 <body>
@@ -167,6 +220,58 @@ $config = Config::getAll();
                 <?php echo htmlspecialchars($message); ?>
             </div>
         <?php endif; ?>
+
+        <?php if (mustChangePassword()): ?>
+            <div class="alert alert-error" style="margin-bottom: 20px;">
+                ⚠️ <strong>Security Warning:</strong> You are using the default password. Please change it immediately!
+            </div>
+        <?php endif; ?>
+
+        <!-- Password Change Form -->
+        <div class="settings-section">
+            <h2>🔐 Change Admin Password</h2>
+
+            <form method="POST" style="margin: 0;">
+                <input type="hidden" name="csrf_token" value="<?php echo getAdminCsrfToken(); ?>">
+                <input type="hidden" name="action" value="change_password">
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <h3>Current Password</h3>
+                        <p>Enter your current password to verify</p>
+                    </div>
+                    <div class="setting-control">
+                        <input type="password" name="current_password" required autocomplete="current-password">
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <h3>New Password</h3>
+                        <p>Must be at least 8 characters</p>
+                    </div>
+                    <div class="setting-control">
+                        <input type="password" name="new_password" required minlength="8" autocomplete="new-password">
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <h3>Confirm New Password</h3>
+                        <p>Re-enter your new password</p>
+                    </div>
+                    <div class="setting-control">
+                        <input type="password" name="confirm_password" required minlength="8" autocomplete="new-password">
+                    </div>
+                </div>
+
+                <div style="padding: 16px 0; text-align: right;">
+                    <button type="submit" class="btn-save" style="display: inline-block;">
+                        🔐 Change Password
+                    </button>
+                </div>
+            </form>
+        </div>
 
         <form method="POST">
             <input type="hidden" name="csrf_token" value="<?php echo getAdminCsrfToken(); ?>">
