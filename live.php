@@ -200,7 +200,7 @@
         if (needed > 0) {
           targetInfo = `<div class="target-info">Target: ${target} | Need ${needed} runs from ${ballsRemaining} balls (${oversRemaining} overs) | RRR: ${requiredRunRate}</div>`;
         } else {
-          targetInfo = `<div class="target-info" style="color: #4ade80;">🏆 ${teamName} won by ${state.setup.wicketsLimit - state.score.wickets} wickets!</div>`;
+          targetInfo = `<div class="target-info" style="color: #4ade80;">${teamName} won by ${state.setup.wicketsLimit - state.score.wickets} wickets!</div>`;
         }
       } else if (state.innings === 1) {
         targetInfo = `<div class="target-info">First Innings</div>`;
@@ -350,9 +350,14 @@
         html += `</div>`;
       }
 
-      // Batting Scorecard
-      if (state.batsmen && Object.keys(state.batsmen).length > 0) {
-        html += `<h3 class="section-header">Batting Scorecard</h3>`;
+      // Batting Scorecard - Only show batsmen from batting team who have batted
+      const battingTeamPlayers = state.setup?.[state.battingTeam]?.players || [];
+      const battersWhoHaveBatted = Object.entries(state.batsmen || {}).filter(([name, stats]) => {
+        return battingTeamPlayers.includes(name) && (stats.balls > 0 || stats.out);
+      });
+
+      if (battersWhoHaveBatted.length > 0) {
+        html += `<h3 class="section-header">Batting Scorecard - ${escapeHtml(teamName)}</h3>`;
         html += `<div class="stats-table"><table>`;
         html += `
           <thead>
@@ -368,7 +373,7 @@
           <tbody>
         `;
 
-        Object.entries(state.batsmen).forEach(([name, stats]) => {
+        battersWhoHaveBatted.forEach(([name, stats]) => {
           const sr = stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : '0.0';
           const isActive = name === state.striker || name === state.nonStriker;
           const rowClass = isActive ? 'highlight' : '';
@@ -389,8 +394,27 @@
         html += `</tbody></table></div>`;
       }
 
-      // Bowling Scorecard
-      if (state.bowlers && Object.keys(state.bowlers).length > 0) {
+      // Remaining Batsmen - Show batsmen who haven't batted yet
+      const remainingBatsmen = battingTeamPlayers.filter(name => {
+        const stats = state.batsmen?.[name];
+        return !stats || (stats.balls === 0 && !stats.out);
+      });
+
+      if (remainingBatsmen.length > 0) {
+        html += `<h3 class="section-header">Remaining Batsmen</h3>`;
+        html += `<div class="player-card">`;
+        html += `<div class="player-stats">`;
+        html += remainingBatsmen.map(name => escapeHtml(name)).join(' • ');
+        html += `</div></div>`;
+      }
+
+      // Bowling Scorecard - Only show bowlers from bowling team who have bowled
+      const bowlingTeamPlayers = state.setup?.[state.bowlingTeam]?.players || [];
+      const bowlersWhoHaveBowled = Object.entries(state.bowlers || {}).filter(([name, stats]) => {
+        return bowlingTeamPlayers.includes(name) && stats.balls > 0;
+      });
+
+      if (bowlersWhoHaveBowled.length > 0) {
         html += `<h3 class="section-header">Bowling Scorecard - ${escapeHtml(bowlingTeamName)}</h3>`;
         html += `<div class="stats-table"><table>`;
         html += `
@@ -407,13 +431,13 @@
           <tbody>
         `;
 
-        Object.entries(state.bowlers).forEach(([name, stats]) => {
+        bowlersWhoHaveBowled.forEach(([name, stats]) => {
           const overs = Math.floor(stats.balls / 6);
           const balls = stats.balls % 6;
           const econ = stats.balls > 0 ? (stats.runs / (stats.balls / 6)).toFixed(2) : '0.00';
           const isActive = name === state.bowler;
           const rowClass = isActive ? 'highlight' : '';
-          const status = isActive ? `<span class="bowling-badge">●</span>` : '';
+          const status = isActive ? `<span class="bowling-badge">BOWLING</span>` : '';
 
           html += `
             <tr class="${rowClass}">
@@ -428,6 +452,20 @@
         });
 
         html += `</tbody></table></div>`;
+      }
+
+      // Remaining Bowlers - Show bowlers who haven't bowled yet
+      const remainingBowlers = bowlingTeamPlayers.filter(name => {
+        const stats = state.bowlers?.[name];
+        return !stats || stats.balls === 0;
+      });
+
+      if (remainingBowlers.length > 0) {
+        html += `<h3 class="section-header">Remaining Bowlers</h3>`;
+        html += `<div class="player-card">`;
+        html += `<div class="player-stats">`;
+        html += remainingBowlers.map(name => escapeHtml(name)).join(' • ');
+        html += `</div></div>`;
       }
 
       // Extras
