@@ -11,6 +11,7 @@
             <a href="players.php">Players</a>
             <a href="stats.php">Stats</a>
             <a href="live-sessions.php">Live Sessions</a>
+            <a href="settings.php">Settings</a>
         </nav>
         <div class="user-menu">
             <span class="username"><?php echo htmlspecialchars($_SESSION['admin_username'] ?? 'Admin'); ?></span>

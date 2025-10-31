@@ -4,11 +4,11 @@ session_start();
 
 /**
  * StumpVision — api/live.php
- * Live score sharing API (disabled by default)
+ * Live score sharing API (configurable via admin settings)
  */
 
-// Configuration - set to true to enable live score sharing
-define('LIVE_SCORE_ENABLED', false);
+// Load configuration
+require_once __DIR__ . '/../admin/config-helper.php';
 
 // Security headers
 header('Content-Type: application/json; charset=utf-8');
@@ -16,7 +16,8 @@ header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: SAMEORIGIN');
 header('X-XSS-Protection: 1; mode=block');
 
-if (!LIVE_SCORE_ENABLED) {
+// Check if live score sharing is enabled via admin settings
+if (!Config::isLiveScoreEnabled()) {
     http_response_code(403);
     echo json_encode(['ok' => false, 'err' => 'live_score_disabled']);
     exit;
