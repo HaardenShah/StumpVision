@@ -6,7 +6,9 @@ Complete admin dashboard for managing matches, players, and statistics.
 
 ### 🔐 Authentication
 - Secure session-based authentication
-- Password hashing with bcrypt
+- Password hashing with bcrypt (stored in config.json)
+- Password change UI in Settings page
+- First-login password change enforcement
 - CSRF protection on all forms
 - Session timeout handling
 
@@ -51,35 +53,48 @@ Complete admin dashboard for managing matches, players, and statistics.
 - Delete old sessions
 - Direct links to live viewers
 
+### ⚙️ Settings
+- Change admin password securely via UI
+- Enable/disable live score sharing
+- Configure player management settings
+- General app configuration
+- Developer settings (debug mode)
+
 ## Installation
 
-### 1. Default Credentials
+### 1. Access Admin Panel
+Navigate to: `http://your-domain.com/admin/`
+
+You'll be redirected to the login page.
+
+### 2. Login with Default Credentials
 ```
 Username: admin
 Password: changeme
 ```
 
-**⚠️ IMPORTANT: Change these immediately!**
+### 3. Change Password Immediately
+After logging in, you'll be automatically redirected to the Settings page where you must change the default password.
 
-### 2. Change Password
+**Security Features:**
+- Minimum 8 characters required
+- Cannot reuse default password
+- Current password verification required
+- Password stored as bcrypt hash in `data/config.json`
+- CSRF protection on password change
 
-Edit `admin/auth.php` and update:
-
-```php
-define('ADMIN_USERNAME', 'your_username');
-define('ADMIN_PASSWORD_HASH', password_hash('your_secure_password', PASSWORD_BCRYPT));
-```
-
-### 3. Access
-Navigate to: `http://your-domain.com/admin/`
-
-You'll be redirected to the login page.
+### 4. Configure Settings
+Use the Settings page to:
+- Enable/disable live score sharing
+- Configure player management settings
+- Adjust application settings
 
 ## File Structure
 
 ```
 admin/
 ├── auth.php              # Authentication system
+├── config-helper.php     # Configuration management
 ├── index.php             # Dashboard
 ├── login.php             # Login page
 ├── logout.php            # Logout handler
@@ -87,6 +102,7 @@ admin/
 ├── players.php           # Player registry
 ├── stats.php             # Aggregate statistics
 ├── live-sessions.php     # Live session management
+├── settings.php          # Admin settings & password change
 ├── header.php            # Shared header
 ├── styles.css            # Admin styling
 └── README.md             # This file
@@ -155,12 +171,15 @@ Stats automatically updated in Stats page
 ## Security Features
 
 - ✅ Session-based authentication
-- ✅ Password hashing (bcrypt)
-- ✅ CSRF token protection
+- ✅ Password hashing (bcrypt) stored in config.json
+- ✅ Password change UI with validation
+- ✅ First-login password change enforcement
+- ✅ CSRF token protection on all forms
 - ✅ Input sanitization
 - ✅ XSS prevention
 - ✅ Admin-only API endpoints
-- ✅ Secure password storage
+- ✅ Secure credential storage (never in source code)
+- ✅ Minimum password length enforcement (8 characters)
 
 ## Customization
 
@@ -177,6 +196,15 @@ Edit `styles.css` and modify the `:root` variables:
 }
 ```
 
+### Changing Username
+
+To change the admin username:
+
+1. Login to admin panel
+2. Edit `data/config.json` manually
+3. Change the `admin_username` value
+4. Logout and login with new username
+
 ### Adding More Admins
 
 Currently supports single admin. To add multiple admins:
@@ -184,6 +212,7 @@ Currently supports single admin. To add multiple admins:
 1. Create an `admins.json` file
 2. Modify `auth.php` to check against the file
 3. Add user management UI
+4. Update Settings page for multi-user password management
 
 ## Maintenance
 
@@ -192,7 +221,10 @@ Currently supports single admin. To add multiple admins:
 Regularly backup:
 - `/data/*.json` - All matches
 - `/data/players.json` - Player registry
+- `/data/config.json` - Admin settings and credentials
 - `/data/live/*.json` - Live sessions
+
+**Important:** Keep `config.json` secure - it contains your password hash!
 
 ### Cleanup
 
@@ -213,7 +245,13 @@ Old live sessions can accumulate. Use the Live Sessions page to delete inactive 
 ### Live Sessions Not Working
 - Check that `/data/live/` directory exists
 - Verify write permissions
-- Ensure `LIVE_SCORE_ENABLED = true` in `api/live.php`
+- Enable "Live Score Sharing" in Admin Settings page
+
+### Locked Out / Forgot Password
+- Edit `data/config.json` manually
+- Remove or change `admin_password_hash` to force reset
+- Or delete `config.json` to reset to defaults
+- Default password will be `changeme` after reset
 
 ## Future Enhancements
 

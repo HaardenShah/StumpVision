@@ -85,18 +85,14 @@ Perfect for pickup cricket, club matches, and growing your cricket community! �
 
 ### Admin Setup
 
-The admin backend is included but requires password configuration:
+The admin backend is included and ready to use:
 
-1. **Edit** `admin/auth.php`
-2. **Change default credentials**:
-   ```php
-   define('ADMIN_USERNAME', 'your_username');
-   define('ADMIN_PASSWORD_HASH', password_hash('your_secure_password', PASSWORD_BCRYPT));
-   ```
-3. **Access admin panel**: `https://yourdomain.com/admin/`
-4. **Default credentials** (CHANGE IMMEDIATELY):
+1. **Access admin panel**: `https://yourdomain.com/admin/`
+2. **Login with default credentials**:
    - Username: `admin`
    - Password: `changeme`
+3. **Change password immediately** - You'll be prompted to change the default password in the Settings page after first login
+4. **Configure features** - Use the Settings page to enable/disable live score sharing and other features
 
 See `admin/README.md` for full admin documentation.
 
@@ -158,8 +154,8 @@ Perfect for **growing your cricket club** through viral social sharing! 📱✨
 4. Share to social media or download
 
 ### 6. Live Score Sharing (Optional)
-1. Enable in `api/live.php`: Set `LIVE_SCORE_ENABLED = true`
-2. Go to **Settings** tab
+1. Enable in **Admin Settings**: Login to admin panel, go to Settings, enable "Live Score Sharing"
+2. Go to **Settings** tab in the main app
 3. Click **"Start Live Sharing"**
 4. Copy generated link
 5. Share link with viewers
@@ -266,7 +262,9 @@ Admin Backend:
 │   ├── players.php        - Player registry
 │   ├── stats.php          - Aggregate statistics
 │   ├── live-sessions.php  - Live session management
+│   ├── settings.php       - Admin settings & password change
 │   ├── auth.php           - Authentication system
+│   ├── config-helper.php  - Configuration management
 │   ├── styles.css         - Admin UI styling
 │   └── README.md          - Admin documentation
 
@@ -286,6 +284,7 @@ Data Storage:
 ├── data/
 │   ├── *.json         - Saved matches
 │   ├── players.json   - Registered players
+│   ├── config.json    - Admin settings & credentials (gitignored)
 │   ├── live/          - Live session data
 │   └── cards/         - Generated share cards (PNG/MP4)
 ```
@@ -472,8 +471,9 @@ Need help? Check:
 
 **Admin Issues:**
 - Can't login? Check session support and file permissions
+- Forced to change password? This is a security feature on first login with default credentials
 - Stats not showing? Ensure matches are verified and players registered
-- Live sharing not working? Enable in `api/live.php`
+- Live sharing not working? Enable in Admin Settings page
 
 ---
 
@@ -492,12 +492,16 @@ Need help? Check:
 
 **👨‍💼 Admin Backend**
 - ✨ Complete admin dashboard with authentication
+- ✨ Password change UI in Settings (no file editing required)
+- ✨ First-login password change enforcement for security
+- ✨ Settings page for feature toggles (live sharing, etc.)
 - ✨ Match management interface (view, verify, delete)
 - ✨ Player registry system to track official players
 - ✨ Aggregate statistics across all verified matches
 - ✨ Live session management interface
 - ✨ Match verification system for stat integrity
 - 🔒 Session-based auth with bcrypt password hashing
+- 🔒 Credentials stored securely in config.json (hashed)
 
 **🔴 Live Score Sharing**
 - ✨ Real-time live score sharing with generated links
