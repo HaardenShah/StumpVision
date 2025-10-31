@@ -351,13 +351,28 @@
 
     function renderPlayers(team) {
       const container = document.getElementById(`${team}Players`);
-      container.innerHTML = state[team].players.map(player => `
-        <div class="player-tag">
-          <span>${player}</span>
-          <button onclick="removePlayer('${team}', '${player}')">×</button>
-        </div>
-      `).join('');
-      
+      // Clear existing content
+      container.innerHTML = '';
+
+      // Create player tags using DOM manipulation instead of innerHTML
+      state[team].players.forEach(player => {
+        const tag = document.createElement('div');
+        tag.className = 'player-tag';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = player; // Safe - textContent auto-escapes
+
+        const removeBtn = document.createElement('button');
+        removeBtn.textContent = '×';
+        removeBtn.setAttribute('type', 'button');
+        removeBtn.setAttribute('aria-label', `Remove ${player}`);
+        removeBtn.addEventListener('click', () => removePlayer(team, player));
+
+        tag.appendChild(nameSpan);
+        tag.appendChild(removeBtn);
+        container.appendChild(tag);
+      });
+
       // Update opening player dropdowns
       updateOpeningSelects();
     }

@@ -122,23 +122,33 @@
     .player-item-actions { display: flex; gap: 8px; }
     .player-item-btn { padding: 6px 12px; border: 2px solid var(--line); border-radius: 6px; background: var(--card); color: var(--ink); font-size: 12px; font-weight: 600; cursor: pointer; }
     .player-item-btn.danger { border-color: var(--danger); color: var(--danger); }
+    .toast-container { position: fixed; top: 80px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; max-width: 350px; }
+    @media (max-width: 640px) { .toast-container { right: 10px; left: 10px; max-width: none; } }
+    .toast { background: var(--card); border: 2px solid var(--line); border-radius: 12px; padding: 16px; box-shadow: 0 4px 12px var(--shadow); display: flex; align-items: center; gap: 12px; animation: slideIn 0.3s ease; }
+    .toast.success { border-left: 4px solid var(--success); }
+    .toast.error { border-left: 4px solid var(--danger); }
+    .toast.info { border-left: 4px solid var(--accent); }
+    .toast-message { flex: 1; font-size: 14px; font-weight: 500; }
+    .toast-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 20px; font-weight: bold; padding: 0 4px; }
+    @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
   </style>
 </head>
 <body>
+  <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
   <div class="header">
     <div class="header-top">
       <div class="brand">StumpVision</div>
       <button class="settings-btn" onclick="showTab('settings')">Settings</button>
     </div>
     <div class="score-display">
-      <div class="score-main" id="mainScore">0/0</div>
+      <div class="score-main" id="mainScore" aria-live="polite" aria-atomic="true">0/0</div>
       <div class="score-meta">
         <span id="teamName">Team A</span>
-        <span>Overs: <strong id="oversDisplay">0.0</strong></span>
-        <span>RR: <strong id="runRate">0.00</strong></span>
+        <span>Overs: <strong id="oversDisplay" aria-live="polite">0.0</strong></span>
+        <span>RR: <strong id="runRate" aria-live="polite">0.00</strong></span>
       </div>
-      <div id="targetDisplay" style="display: none; margin-top: 8px; font-size: 16px; font-weight: 600;"></div>
-      <div id="freeHitBadge" class="free-hit-badge" style="display: none;">FREE HIT</div>
+      <div id="targetDisplay" style="display: none; margin-top: 8px; font-size: 16px; font-weight: 600;" aria-live="polite"></div>
+      <div id="freeHitBadge" class="free-hit-badge" style="display: none;" role="status" aria-live="assertive">FREE HIT</div>
     </div>
     <div class="tabs">
       <button class="tab active" onclick="showTab('score')">Score</button>
@@ -283,25 +293,37 @@
         <button class="btn-primary" onclick="shareRecap()">Share Score Card</button>
         <p class="hint" id="saveStatus"></p>
       </div>
+      <div class="settings-item" id="liveShareSection" style="display: none;">
+        <h3>Live Score Sharing</h3>
+        <p style="margin-bottom: 12px; font-size: 14px;">Share a link so others can watch this match live</p>
+        <button class="btn-primary" id="startLiveBtn" onclick="startLiveSharing()">Start Live Sharing</button>
+        <button class="btn-primary" id="stopLiveBtn" onclick="stopLiveSharing()" style="display: none; background: var(--danger);">Stop Live Sharing</button>
+        <div id="liveShareLink" style="display: none; margin-top: 12px; padding: 12px; background: var(--accent-light); border-radius: 8px;">
+          <p style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">Live Score Link:</p>
+          <input type="text" id="liveShareUrl" readonly style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--line); font-size: 13px; font-family: monospace;">
+          <button class="btn-secondary" onclick="copyLiveLink()" style="margin-top: 8px;">Copy Link</button>
+        </div>
+        <p class="hint">Note: Live sharing is currently disabled on this server</p>
+      </div>
       <button class="btn-primary" onclick="newInnings()">Start New Innings</button>
       <button class="btn-primary" style="background: var(--danger);" onclick="resetMatch()">Reset Match</button>
     </div>
   </div>
 
-  <div class="scoring-dock" id="scoringDock">
+  <div class="scoring-dock" id="scoringDock" role="toolbar" aria-label="Cricket scoring controls">
     <div class="pad-grid">
-      <button class="pad-btn" onclick="recordBall(0)">0</button>
-      <button class="pad-btn" onclick="recordBall(1)">1</button>
-      <button class="pad-btn" onclick="recordBall(2)">2</button>
-      <button class="pad-btn" onclick="recordBall(3)">3</button>
-      <button class="pad-btn boundary" onclick="recordBall(4)">4</button>
-      <button class="pad-btn boundary" onclick="recordBall(6)">6</button>
-      <button class="pad-btn extra" onclick="showNoBallModal()">NB</button>
-      <button class="pad-btn extra" onclick="showWideModal()">WD</button>
-      <button class="pad-btn extra" onclick="showByeModal()">B</button>
-      <button class="pad-btn extra" onclick="showLegByeModal()">LB</button>
-      <button class="pad-btn wicket" onclick="showWicketModal()">W</button>
-      <button class="pad-btn wicket" onclick="undoLastBall()">Undo</button>
+      <button class="pad-btn" onclick="recordBall(0)" aria-label="Record 0 runs - dot ball" title="Dot ball">0</button>
+      <button class="pad-btn" onclick="recordBall(1)" aria-label="Record 1 run" title="1 run">1</button>
+      <button class="pad-btn" onclick="recordBall(2)" aria-label="Record 2 runs" title="2 runs">2</button>
+      <button class="pad-btn" onclick="recordBall(3)" aria-label="Record 3 runs" title="3 runs">3</button>
+      <button class="pad-btn boundary" onclick="recordBall(4)" aria-label="Record 4 runs - boundary" title="4 runs (boundary)">4</button>
+      <button class="pad-btn boundary" onclick="recordBall(6)" aria-label="Record 6 runs - six" title="6 runs (six)">6</button>
+      <button class="pad-btn extra" onclick="showNoBallModal()" aria-label="Record no ball" title="No Ball">NB</button>
+      <button class="pad-btn extra" onclick="showWideModal()" aria-label="Record wide ball" title="Wide">WD</button>
+      <button class="pad-btn extra" onclick="showByeModal()" aria-label="Record byes" title="Byes">B</button>
+      <button class="pad-btn extra" onclick="showLegByeModal()" aria-label="Record leg byes" title="Leg Byes">LB</button>
+      <button class="pad-btn wicket" onclick="showWicketModal()" aria-label="Record wicket" title="Wicket">W</button>
+      <button class="pad-btn wicket" onclick="undoLastBall()" aria-label="Undo last ball" title="Undo">Undo</button>
     </div>
   </div>
 
@@ -455,6 +477,37 @@
       } catch (e) {
         console.log('Haptics not available');
       }
+    }
+
+    // Toast notification system
+    function showToast(message, type = 'info', duration = 3000) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.setAttribute('role', 'alert');
+
+      const messageSpan = document.createElement('span');
+      messageSpan.className = 'toast-message';
+      messageSpan.textContent = message;
+
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'toast-close';
+      closeBtn.textContent = '×';
+      closeBtn.setAttribute('aria-label', 'Close notification');
+      closeBtn.addEventListener('click', () => {
+        toast.remove();
+      });
+
+      toast.appendChild(messageSpan);
+      toast.appendChild(closeBtn);
+      container.appendChild(toast);
+
+      // Auto remove after duration
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(400px)';
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
     }
 
     function getBallEmoji() {
@@ -620,16 +673,18 @@
     function processNoBall(batRuns) {
       closeModal('noBallModal');
       haptic('medium');
-      
+
       matchState.batsmen[matchState.striker].runs += batRuns;
       matchState.batsmen[matchState.striker].balls += 1;
       if (batRuns === 4) matchState.batsmen[matchState.striker].fours += 1;
       if (batRuns === 6) matchState.batsmen[matchState.striker].sixes += 1;
-      
+
+      // No ball counts against bowler's stats (but not as a legal ball towards the over)
       matchState.bowlers[matchState.bowler].runs += (1 + batRuns);
+      // Note: We don't increment matchState.balls (over balls) but we do count it for bowler stats
       matchState.score.runs += (1 + batRuns);
       matchState.extras.nb += 1;
-      
+
       matchState.thisOver.push(`${batRuns}+NB`);
       matchState.freeHit = true;
       
@@ -759,12 +814,16 @@
       // Award runs to striker (they were attempting the run)
       matchState.batsmen[matchState.striker].runs += runs;
       matchState.batsmen[matchState.striker].balls += 1;
-      
+
       // Update bowler and score
       matchState.bowlers[matchState.bowler].runs += runs;
       matchState.bowlers[matchState.bowler].balls += 1;
       matchState.score.runs += runs;
       matchState.balls += 1;
+
+      // Update partnership stats for run-out
+      matchState.currentPartnership.runs += runs;
+      matchState.currentPartnership.balls += 1;
       
       // Determine who got out
       const outPlayer = outBatsman === 'striker' ? matchState.striker : matchState.nonStriker;
@@ -773,33 +832,56 @@
       
       // Update score wickets
       matchState.score.wickets += 1;
-      
+
+      // Record fall of wicket
+      const totalOvers = matchState.overs + (matchState.balls / 6);
+      matchState.wicketsFallen.push({
+        score: matchState.score.runs,
+        player: outPlayer,
+        runs: matchState.batsmen[outPlayer].runs,
+        over: totalOvers.toFixed(1)
+      });
+
+      // Save partnership and start new one (will be initialized when new batsman comes in)
+      if (matchState.currentPartnership.batsman1 && matchState.currentPartnership.batsman2) {
+        matchState.partnerships.push({...matchState.currentPartnership});
+      }
+
       // Determine strike for next ball
       // If odd runs completed, batsmen crossed
       // If even runs, they didn't cross or crossed back
       let battersCrossed = (runs % 2 === 1);
-      
-      // If the batsman who got out was the striker:
-      // - If they crossed (odd runs), non-striker is now at striker end
-      // - If they didn't cross (even runs), striker position stays same
-      // If non-striker got out:
-      // - If they crossed (odd runs), striker is now at non-striker end  
-      // - If they didn't cross (even runs), positions stay same
-      
+
+      // Store the current batsmen before making changes
+      const currentStriker = matchState.striker;
+      const currentNonStriker = matchState.nonStriker;
+
+      // Handle batsman positioning after run out
       if (outBatsman === 'striker') {
         // Striker got out
         if (battersCrossed) {
-          // They crossed, so non-striker is now at striker end
-          matchState.striker = matchState.nonStriker;
+          // They crossed, so non-striker is now at striker's end
+          // New batsman will come to non-striker's end
+          matchState.striker = currentNonStriker;
+          // matchState.nonStriker will be set to new batsman in showBatsmanModal
+        } else {
+          // They didn't cross, striker stays at striker's end
+          // New batsman replaces striker at striker's end
+          // matchState.striker will be set to new batsman in showBatsmanModal
         }
-        // else striker position gets new batsman (handled in showBatsmanModal)
       } else {
         // Non-striker got out
         if (battersCrossed) {
-          // They crossed, swap the positions
-          [matchState.striker, matchState.nonStriker] = [matchState.nonStriker, matchState.striker];
+          // They crossed, so striker is now at non-striker's end
+          // New batsman comes to striker's end
+          matchState.nonStriker = currentStriker;
+          // matchState.striker will be set to new batsman in showBatsmanModal
+        } else {
+          // They didn't cross, positions stay the same
+          // New batsman replaces non-striker at non-striker's end
+          // matchState.striker stays the same
+          // matchState.nonStriker will be set to new batsman in showBatsmanModal
         }
-        // else positions stay same, just replace non-striker
       }
       
       // Add runs first, then wicket separately
@@ -957,13 +1039,24 @@
       } else {
         // Regular wicket or run out - replace the appropriate batsman
         const newBatsman = select.value;
-        
+
         if (matchState.runOutVictim) {
-          // Run out case - replace the victim
-          if (matchState.runOutVictim === matchState.striker) {
+          // Run out case - the positioning has already been set in processRunOut
+          // We just need to place the new batsman in the correct position
+          // The runOutVictim tells us who got out, and positioning was already adjusted
+
+          // Find which position needs the new batsman
+          if (!matchState.striker || matchState.striker === matchState.runOutVictim) {
             matchState.striker = newBatsman;
-          } else {
+          } else if (!matchState.nonStriker || matchState.nonStriker === matchState.runOutVictim) {
             matchState.nonStriker = newBatsman;
+          } else {
+            // Fallback: replace based on who actually got out
+            if (matchState.runOutVictim === matchState.striker) {
+              matchState.striker = newBatsman;
+            } else {
+              matchState.nonStriker = newBatsman;
+            }
           }
           matchState.runOutVictim = null; // Clear the flag
         } else {
@@ -1385,8 +1478,10 @@
       if (newOvers > 0 && newOvers <= 50) {
         matchState.setup.oversPerInnings = newOvers;
         localStorage.setItem('stumpvision_match', JSON.stringify(matchState.setup));
-        alert(`Overs updated to ${newOvers}`);
+        showToast(`Overs updated to ${newOvers}`, 'success');
         updateDisplay();
+      } else {
+        showToast('Invalid overs value. Must be between 1 and 50', 'error');
       }
     }
 
@@ -1395,8 +1490,10 @@
       if (newWickets > 0 && newWickets <= 11) {
         matchState.setup.wicketsLimit = newWickets;
         localStorage.setItem('stumpvision_match', JSON.stringify(matchState.setup));
-        alert(`Wickets limit updated to ${newWickets}`);
+        showToast(`Wickets limit updated to ${newWickets}`, 'success');
         updateDisplay();
+      } else {
+        showToast('Invalid wickets value. Must be between 1 and 11', 'error');
       }
     }
 
@@ -1415,46 +1512,75 @@
     function renderPlayerList(teamType) {
       const team = teamType === 'batting' ? matchState.battingTeam : matchState.bowlingTeam;
       const players = matchState.setup[team].players;
-      const container = teamType === 'batting' ? 
-        document.getElementById('battingTeamPlayers') : 
+      const container = teamType === 'batting' ?
+        document.getElementById('battingTeamPlayers') :
         document.getElementById('bowlingTeamPlayers');
-      
-      container.innerHTML = players.map(p => {
+
+      // Clear existing content
+      container.innerHTML = '';
+
+      // Create player items using DOM manipulation
+      players.forEach(p => {
         const stats = matchState.batsmen[p];
         const isActive = (p === matchState.striker || p === matchState.nonStriker || p === matchState.bowler);
         const isRetired = stats && stats.retired;
-        
-        let statusBadge = '';
+
+        const item = document.createElement('div');
+        item.className = 'player-item';
+
+        const nameContainer = document.createElement('span');
+        nameContainer.className = 'player-item-name';
+        nameContainer.textContent = p; // Safe
+
         if (isRetired) {
-          statusBadge = '<span class="retired-badge">RETIRED</span>';
+          const badge = document.createElement('span');
+          badge.className = 'retired-badge';
+          badge.textContent = 'RETIRED';
+          nameContainer.appendChild(document.createTextNode(' '));
+          nameContainer.appendChild(badge);
         }
-        
-        return `
-          <div class="player-item">
-            <span class="player-item-name">${p} ${statusBadge}</span>
-            <div class="player-item-actions">
-              ${isRetired ? `<button class="player-item-btn" onclick="unretirePlayer('${p}')">Unretire</button>` : ''}
-              ${!isActive ? `<button class="player-item-btn danger" onclick="removePlayer('${team}', '${p}')">Remove</button>` : ''}
-            </div>
-          </div>
-        `;
-      }).join('');
+
+        const actions = document.createElement('div');
+        actions.className = 'player-item-actions';
+
+        if (isRetired) {
+          const unretireBtn = document.createElement('button');
+          unretireBtn.className = 'player-item-btn';
+          unretireBtn.textContent = 'Unretire';
+          unretireBtn.setAttribute('aria-label', `Unretire ${p}`);
+          unretireBtn.addEventListener('click', () => unretirePlayer(p));
+          actions.appendChild(unretireBtn);
+        }
+
+        if (!isActive) {
+          const removeBtn = document.createElement('button');
+          removeBtn.className = 'player-item-btn danger';
+          removeBtn.textContent = 'Remove';
+          removeBtn.setAttribute('aria-label', `Remove ${p}`);
+          removeBtn.addEventListener('click', () => removePlayer(team, p));
+          actions.appendChild(removeBtn);
+        }
+
+        item.appendChild(nameContainer);
+        item.appendChild(actions);
+        container.appendChild(item);
+      });
     }
 
     function addNewPlayer(teamType) {
       const inputId = teamType === 'batting' ? 'newBattingPlayer' : 'newBowlingPlayer';
       const input = document.getElementById(inputId);
       const playerName = input.value.trim();
-      
+
       if (!playerName) {
-        alert('Please enter a player name');
+        showToast('Please enter a player name', 'error');
         return;
       }
-      
+
       const team = teamType === 'batting' ? matchState.battingTeam : matchState.bowlingTeam;
-      
+
       if (matchState.setup[team].players.includes(playerName)) {
-        alert('Player already exists');
+        showToast('Player already exists', 'error');
         return;
       }
       
@@ -1512,7 +1638,41 @@
     }
 
     function closeModal(modalId) {
-      document.getElementById(modalId).classList.remove('active');
+      const modal = document.getElementById(modalId);
+      modal.classList.remove('active');
+      // Return focus to the last focused element before modal opened
+      if (modal.lastFocusedElement) {
+        modal.lastFocusedElement.focus();
+        delete modal.lastFocusedElement;
+      }
+    }
+
+    // Add global ESC key handler for modals
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        // Find active modal and close it
+        const activeModal = document.querySelector('.modal.active');
+        if (activeModal) {
+          const modalId = activeModal.getAttribute('id');
+          closeModal(modalId);
+        }
+      }
+    });
+
+    // Helper to open modal with focus management
+    function openModal(modalId) {
+      const modal = document.getElementById(modalId);
+      // Store current focused element
+      modal.lastFocusedElement = document.activeElement;
+      modal.classList.add('active');
+
+      // Focus first focusable element in modal
+      setTimeout(() => {
+        const focusable = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        if (focusable.length > 0) {
+          focusable[0].focus();
+        }
+      }, 100);
     }
 
     function newInnings() {
@@ -1760,17 +1920,17 @@
         });
 
         const result = await response.json();
-        
+
         if (result.ok) {
           matchState.saveId = result.id;
-          
+
           localStorage.setItem('stumpvision_completed_match', JSON.stringify({
             saveId: result.id,
             payload: payload
           }));
 
           alert('🏆 Match Complete!\n\nMatch saved successfully. Redirecting to summary...');
-          
+
           window.location.href = 'summary.php';
         } else {
           alert('Match complete but save failed. Showing stats anyway...');
@@ -1782,6 +1942,129 @@
         showTab('stats');
       }
     }
+
+    // Live Score Sharing Functions
+    let liveShareId = null;
+    let liveUpdateInterval = null;
+
+    async function startLiveSharing() {
+      try {
+        if (!matchState.saveId) {
+          showToast('Please save the match first before starting live sharing', 'error');
+          return;
+        }
+
+        const response = await fetch('api/live.php?action=create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ match_id: matchState.saveId })
+        });
+
+        const result = await response.json();
+
+        if (!result.ok) {
+          if (result.err === 'live_score_disabled') {
+            showToast('Live score sharing is disabled on this server', 'error');
+            return;
+          }
+          throw new Error(result.err || 'Failed to start live sharing');
+        }
+
+        liveShareId = result.live_id;
+        const liveUrl = `${window.location.origin}${window.location.pathname.replace('index.php', '')}live.php?id=${liveShareId}`;
+
+        document.getElementById('liveShareUrl').value = liveUrl;
+        document.getElementById('startLiveBtn').style.display = 'none';
+        document.getElementById('stopLiveBtn').style.display = 'block';
+        document.getElementById('liveShareLink').style.display = 'block';
+
+        showToast('Live sharing started!', 'success');
+
+        // Start pushing updates every 5 seconds
+        liveUpdateInterval = setInterval(pushLiveUpdate, 5000);
+        pushLiveUpdate(); // Initial push
+
+      } catch (err) {
+        console.error('Error starting live sharing:', err);
+        showToast('Failed to start live sharing', 'error');
+      }
+    }
+
+    async function pushLiveUpdate() {
+      if (!liveShareId) return;
+
+      try {
+        await fetch('api/live.php?action=update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            live_id: liveShareId,
+            state: matchState
+          })
+        });
+      } catch (err) {
+        console.error('Error pushing live update:', err);
+      }
+    }
+
+    async function stopLiveSharing() {
+      if (!liveShareId) return;
+
+      try {
+        await fetch('api/live.php?action=stop', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ live_id: liveShareId })
+        });
+
+        if (liveUpdateInterval) {
+          clearInterval(liveUpdateInterval);
+          liveUpdateInterval = null;
+        }
+
+        liveShareId = null;
+        document.getElementById('startLiveBtn').style.display = 'block';
+        document.getElementById('stopLiveBtn').style.display = 'none';
+        document.getElementById('liveShareLink').style.display = 'none';
+
+        showToast('Live sharing stopped', 'info');
+
+      } catch (err) {
+        console.error('Error stopping live sharing:', err);
+        showToast('Failed to stop live sharing', 'error');
+      }
+    }
+
+    function copyLiveLink() {
+      const input = document.getElementById('liveShareUrl');
+      input.select();
+      input.setSelectionRange(0, 99999); // For mobile
+      navigator.clipboard.writeText(input.value).then(() => {
+        showToast('Link copied to clipboard!', 'success');
+      }).catch(() => {
+        showToast('Failed to copy link', 'error');
+      });
+    }
+
+    // Check if live sharing is enabled and show the section
+    async function checkLiveShareEnabled() {
+      try {
+        const response = await fetch('api/live.php?action=get&live_id=test');
+        const result = await response.json();
+
+        // If we get any response other than 403 forbidden, the feature might be enabled
+        if (response.status !== 403) {
+          document.getElementById('liveShareSection').style.display = 'block';
+          const hint = document.querySelector('#liveShareSection .hint');
+          if (hint) hint.style.display = 'none';
+        }
+      } catch (err) {
+        // Live sharing not available
+      }
+    }
+
+    // Check on init
+    checkLiveShareEnabled();
 
     init();
 
