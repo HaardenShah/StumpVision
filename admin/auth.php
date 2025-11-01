@@ -46,11 +46,13 @@ function loginAdmin(string $username, string $password): bool
     $credentials = Config::getAdminCredentials();
 
     if ($username === $credentials['username'] && password_verify($password, $credentials['password_hash'])) {
-        session_regenerate_id(true);  // ADD THIS LINE
+        session_regenerate_id(true);
         $_SESSION['admin_logged_in'] = true;
         $_SESSION['admin_username'] = $username;
         $_SESSION['admin_login_time'] = time();
         $_SESSION['must_change_password'] = Config::isUsingDefaultPassword();
+        // Regenerate CSRF token on login for security
+        unset($_SESSION['admin_csrf_token']);
         return true;
     }
     return false;

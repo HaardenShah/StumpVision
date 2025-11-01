@@ -8,9 +8,12 @@ $message = '';
 $messageType = '';
 
 // Handle form submissions
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['csrf_token'])) {
-    if (!validateAdminCsrfToken($_POST['csrf_token'])) {
-        $message = 'Invalid CSRF token';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!isset($_POST['csrf_token'])) {
+        $message = 'CSRF token missing';
+        $messageType = 'error';
+    } elseif (!validateAdminCsrfToken($_POST['csrf_token'])) {
+        $message = 'Invalid CSRF token. Please refresh the page and try again.';
         $messageType = 'error';
     } else {
         $action = $_POST['action'] ?? '';
@@ -161,8 +164,8 @@ if (is_file($playersFile)) {
         <div class="grid-2">
             <div class="card">
                 <h2>Register New Player</h2>
-                <form method="POST">
-                    <input type="hidden" name="csrf_token" value="<?php echo getAdminCsrfToken(); ?>">
+                <form method="POST" action="">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getAdminCsrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
                     <input type="hidden" name="action" value="add">
 
                     <div class="form-group">
