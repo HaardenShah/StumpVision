@@ -278,11 +278,17 @@ try {
         $code = strtoupper(trim($in['code']));
         $name = trim($in['name']);
 
+        // Debug logging - remove after testing
+        error_log("Player verification attempt - Code: {$code}, Name: {$name}");
+        error_log("Total players in DB: " . count($players));
+
         // Find player by code
         $found = null;
         foreach ($players as $player) {
+            error_log("Checking player code: " . ($player['code'] ?? 'NO_CODE') . " against: {$code}");
             if (($player['code'] ?? '') === $code) {
                 $found = $player;
+                error_log("Match found for code: {$code}");
                 break;
             }
         }
@@ -300,6 +306,7 @@ try {
                 ]
             ]);
         } else {
+            error_log("No match found for code: {$code}");
             echo json_encode(['ok' => true, 'verified' => false]);
         }
         exit;
