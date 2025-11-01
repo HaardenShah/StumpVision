@@ -32,7 +32,15 @@ foreach ($matchFiles as $file) {
         $batStats = $inning['batStats'] ?? [];
         foreach ($batStats as $stat) {
             $playerName = $stat['name'] ?? '';
-            $playerId = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $playerName));
+
+            // Use player ID from match data if available (verified player)
+            // Otherwise fall back to name-based slug for backward compatibility
+            if (!empty($stat['playerId']) && isset($stat['verified']) && $stat['verified'] === true) {
+                $playerId = $stat['playerId'];
+            } else {
+                // For guest players or old data, derive ID from name
+                $playerId = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $playerName));
+            }
 
             // Only count registered players
             if (!isset($registeredPlayers[$playerId])) {
@@ -40,8 +48,11 @@ foreach ($matchFiles as $file) {
             }
 
             if (!isset($playerStats[$playerId])) {
+                // Use the registered player's canonical name
+                $canonicalName = $registeredPlayers[$playerId]['name'] ?? $playerName;
+
                 $playerStats[$playerId] = [
-                    'name' => $playerName,
+                    'name' => $canonicalName,
                     'matches' => 0,
                     'innings' => 0,
                     'runs' => 0,
@@ -88,15 +99,26 @@ foreach ($matchFiles as $file) {
         $bowlStats = $inning['bowlStats'] ?? [];
         foreach ($bowlStats as $stat) {
             $playerName = $stat['name'] ?? '';
-            $playerId = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $playerName));
+
+            // Use player ID from match data if available (verified player)
+            // Otherwise fall back to name-based slug for backward compatibility
+            if (!empty($stat['playerId']) && isset($stat['verified']) && $stat['verified'] === true) {
+                $playerId = $stat['playerId'];
+            } else {
+                // For guest players or old data, derive ID from name
+                $playerId = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $playerName));
+            }
 
             if (!isset($registeredPlayers[$playerId])) {
                 continue;
             }
 
             if (!isset($playerStats[$playerId])) {
+                // Use the registered player's canonical name
+                $canonicalName = $registeredPlayers[$playerId]['name'] ?? $playerName;
+
                 $playerStats[$playerId] = [
-                    'name' => $playerName,
+                    'name' => $canonicalName,
                     'matches' => 0,
                     'innings' => 0,
                     'runs' => 0,
