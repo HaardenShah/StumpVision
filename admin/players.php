@@ -13,11 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $message = 'CSRF token missing';
         $messageType = 'error';
     } elseif (!validateAdminCsrfToken($_POST['csrf_token'])) {
-        // Debug info (remove in production)
-        $sessionToken = $_SESSION['admin_csrf_token'] ?? 'NOT SET';
-        $submittedToken = $_POST['csrf_token'] ?? 'NOT SET';
         $message = 'Invalid CSRF token. Please refresh the page and try again.';
-        $message .= ' [Debug: Session=' . substr($sessionToken, 0, 10) . '..., Submitted=' . substr($submittedToken, 0, 10) . '...]';
         $messageType = 'error';
     } else {
         $action = $_POST['action'] ?? '';
@@ -169,7 +165,7 @@ if (is_file($playersFile)) {
             <div class="card">
                 <h2>Register New Player</h2>
                 <form method="POST" action="">
-                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getAdminCsrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
+                    <input type="hidden" name="csrf_token" value="<?php echo getAdminCsrfToken(); ?>">
                     <input type="hidden" name="action" value="add">
 
                     <div class="form-group">
