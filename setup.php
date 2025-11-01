@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#ffffff">
   <meta name="description" content="Set up your cricket match">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
   <title>StumpVision - Match Setup</title>
@@ -454,13 +455,17 @@
       }
 
       try {
+        const payload = { name: name.trim(), code: code.trim().toUpperCase() };
+        console.log('Verification request:', payload);
+
         const response = await fetch('/api/players.php?action=verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: name.trim(), code: code.trim().toUpperCase() })
+          body: JSON.stringify(payload)
         });
 
         const result = await response.json();
+        console.log('Verification response:', result);
         return result;
       } catch (err) {
         console.error('Verification error:', err);

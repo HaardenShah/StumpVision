@@ -21,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'add') {
             $name = trim($_POST['name'] ?? '');
             $team = trim($_POST['team'] ?? '');
+            $playerType = trim($_POST['player_type'] ?? '');
 
             if (empty($name)) {
                 $message = 'Player name is required';
@@ -100,6 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'name' => $name,
                         'code' => $playerCode,
                         'team' => $team,
+                        'player_type' => $playerType,
                         'registered_at' => time(),
                         'registered_by' => $_SESSION['admin_username'] ?? 'admin'
                     ];
@@ -112,6 +114,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     if (file_put_contents($playersFile, json_encode($players, JSON_PRETTY_PRINT)) !== false) {
                         $message = 'Player registered successfully with code: ' . $playerCode;
+                        $messageType = 'success';
+                    } else {
+                        $message = 'Failed to save player data';
+                        $messageType = 'error';
+                    }
+                }
+            }
+        } elseif ($action === 'update') {
+            $playerId = trim($_POST['player_id'] ?? '');
+            $team = trim($_POST['team'] ?? '');
+            $playerType = trim($_POST['player_type'] ?? '');
+
+            if (empty($playerId)) {
+                $message = 'Player ID is required';
+                $messageType = 'error';
+            } else {
+                // Load current players
+                $playersFile = __DIR__ . '/../data/players.json';
+                $players = [];
+                if (is_file($playersFile)) {
+                    $players = json_decode(file_get_contents($playersFile), true) ?: [];
+                }
+
+                if (!isset($players[$playerId])) {
+                    $message = 'Player not found';
+                    $messageType = 'error';
+                } else {
+                    // Update player
+                    $players[$playerId]['team'] = $team;
+                    $players[$playerId]['player_type'] = $playerType;
+                    $players[$playerId]['updated_at'] = time();
+
+                    // Save players
+                    if (file_put_contents($playersFile, json_encode($players, JSON_PRETTY_PRINT)) !== false) {
+                        $message = 'Player updated successfully';
                         $messageType = 'success';
                     } else {
                         $message = 'Failed to save player data';
@@ -178,6 +215,19 @@ if (is_file($playersFile)) {
                         <input type="text" id="team" name="team" placeholder="e.g., Mumbai Indians, Team A">
                     </div>
 
+                    <div class="form-group">
+                        <label for="player_type">Player Type (Optional)</label>
+                        <select id="player_type" name="player_type">
+                            <option value="">-- Select Type --</option>
+                            <option value="Right-Hand Batsman">Right-Hand Batsman</option>
+                            <option value="Left-Hand Batsman">Left-Hand Batsman</option>
+                            <option value="Fast Bowler">Fast Bowler</option>
+                            <option value="Spin Bowler">Spin Bowler</option>
+                            <option value="Wicket-Keeper">Wicket-Keeper</option>
+                            <option value="All-Rounder">All-Rounder</option>
+                        </select>
+                    </div>
+
                     <button type="submit" class="btn-primary">Register Player</button>
                 </form>
             </div>
@@ -193,6 +243,7 @@ if (is_file($playersFile)) {
                                     <th>Name</th>
                                     <th>Player Code</th>
                                     <th>Team</th>
+                                    <th>Player Type</th>
                                     <th>Registered</th>
                                     <th>Actions</th>
                                 </tr>
@@ -207,9 +258,11 @@ if (is_file($playersFile)) {
                                             </code>
                                         </td>
                                         <td><?php echo htmlspecialchars($player['team'] ?? '-'); ?></td>
+                                        <td><?php echo htmlspecialchars($player['player_type'] ?? '-'); ?></td>
                                         <td><?php echo date('M j, Y', $player['registered_at'] ?? time()); ?></td>
                                         <td>
                                             <div class="actions">
+                                                <button class="btn-small" onclick="editPlayer('<?php echo htmlspecialchars($player['id']); ?>', '<?php echo htmlspecialchars($player['name']); ?>', '<?php echo htmlspecialchars($player['team'] ?? ''); ?>', '<?php echo htmlspecialchars($player['player_type'] ?? ''); ?>')">Edit</button>
                                                 <button class="btn-small" onclick="deletePlayer('<?php echo htmlspecialchars($player['id']); ?>', '<?php echo htmlspecialchars($player['name']); ?>')">Delete</button>
                                             </div>
                                         </td>
@@ -225,7 +278,69 @@ if (is_file($playersFile)) {
         </div>
     </div>
 
+    <!-- Edit Player Modal -->
+    <div id="editModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: var(--bg-primary, #121212); padding: 30px; border-radius: 8px; max-width: 500px; width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+            <h2 style="margin-top: 0;">Edit Player</h2>
+            <form method="POST" action="" id="editForm">
+                <input type="hidden" name="csrf_token" value="<?php echo getAdminCsrfToken(); ?>">
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="player_id" id="edit_player_id">
+
+                <div class="form-group">
+                    <label>Player Name</label>
+                    <input type="text" id="edit_player_name" disabled style="background: var(--bg-secondary, #1a1a1a); cursor: not-allowed;">
+                    <small style="color: var(--muted); display: block; margin-top: 5px;">Player name cannot be changed</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit_team">Team</label>
+                    <input type="text" id="edit_team" name="team" placeholder="e.g., Mumbai Indians, Team A">
+                </div>
+
+                <div class="form-group">
+                    <label for="edit_player_type">Player Type</label>
+                    <select id="edit_player_type" name="player_type">
+                        <option value="">-- Select Type --</option>
+                        <option value="Right-Hand Batsman">Right-Hand Batsman</option>
+                        <option value="Left-Hand Batsman">Left-Hand Batsman</option>
+                        <option value="Fast Bowler">Fast Bowler</option>
+                        <option value="Spin Bowler">Spin Bowler</option>
+                        <option value="Wicket-Keeper">Wicket-Keeper</option>
+                        <option value="All-Rounder">All-Rounder</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                    <button type="button" class="btn-small" onclick="closeEditModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
+        function editPlayer(playerId, playerName, team, playerType) {
+            document.getElementById('edit_player_id').value = playerId;
+            document.getElementById('edit_player_name').value = playerName;
+            document.getElementById('edit_team').value = team;
+            document.getElementById('edit_player_type').value = playerType;
+
+            const modal = document.getElementById('editModal');
+            modal.style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        // Close modal on outside click
+        document.getElementById('editModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEditModal();
+            }
+        });
+
         async function deletePlayer(playerId, playerName) {
             if (!confirm(`Delete player "${playerName}"? This cannot be undone.`)) {
                 return;
