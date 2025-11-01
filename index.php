@@ -1862,20 +1862,36 @@
 
     function buildInningsData() {
       const innings = [];
-      const inn1BattingTeam = matchState.battingTeam === 'teamA' ? 0 : 1;
-      
-      innings.push({
-        batting: inn1BattingTeam,
-        bowling: 1 - inn1BattingTeam,
-        runs: matchState.firstInningsScore || 0,
-        wickets: matchState.setup.wicketsLimit,
-        balls: matchState.setup.oversPerInnings * 6,
-        extras: matchState.extras,
-        batStats: buildBatStats(matchState.battingTeam),
-        bowlStats: buildBowlStats(matchState.bowlingTeam)
-      });
-      
-      if (matchState.innings === 2) {
+
+      // If we're still in first innings, use current state
+      if (matchState.innings === 1) {
+        const inn1BattingTeam = matchState.battingTeam === 'teamA' ? 0 : 1;
+        innings.push({
+          batting: inn1BattingTeam,
+          bowling: 1 - inn1BattingTeam,
+          runs: matchState.score.runs,
+          wickets: matchState.score.wickets,
+          balls: matchState.overs * 6 + matchState.balls,
+          extras: matchState.extras,
+          batStats: buildBatStats(matchState.battingTeam),
+          bowlStats: buildBowlStats(matchState.bowlingTeam)
+        });
+      } else {
+        // Second innings: use saved first innings data to determine correct team assignment
+        const inn1BattingTeam = matchState.firstInningsData.battingTeam === 'teamA' ? 0 : 1;
+
+        innings.push({
+          batting: inn1BattingTeam,
+          bowling: 1 - inn1BattingTeam,
+          runs: matchState.firstInningsScore || 0,
+          wickets: matchState.firstInningsData.score.wickets,
+          balls: matchState.firstInningsData.overs * 6 + matchState.firstInningsData.balls,
+          extras: matchState.firstInningsData.extras,
+          batStats: buildBatStatsFromData(matchState.firstInningsData.battingTeam, matchState.firstInningsData.batsmen),
+          bowlStats: buildBowlStatsFromData(matchState.firstInningsData.bowlingTeam, matchState.firstInningsData.bowlers)
+        });
+
+        // Add second innings
         const inn2BattingTeam = 1 - inn1BattingTeam;
         innings.push({
           batting: inn2BattingTeam,
@@ -1888,7 +1904,7 @@
           bowlStats: buildBowlStats(matchState.bowlingTeam)
         });
       }
-      
+
       return innings;
     }
 
@@ -1913,6 +1929,32 @@
       const players = matchState.setup[team].players;
       return players.map(p => {
         const stats = matchState.bowlers[p] || { balls: 0, runs: 0, wickets: 0 };
+        return { name: p, balls: stats.balls, runs: stats.runs, wickets: stats.wickets };
+      }).filter(s => s.balls > 0);
+    }
+
+    // Helper functions to build stats from saved first innings data
+    function buildBatStatsFromData(team, batsmenData) {
+      const players = matchState.setup[team].players;
+      return players.map(p => {
+        const stats = batsmenData[p] || { runs: 0, balls: 0, fours: 0, sixes: 0, out: false, outType: null, retired: false };
+        return {
+          name: p,
+          runs: stats.runs,
+          balls: stats.balls,
+          fours: stats.fours,
+          sixes: stats.sixes,
+          out: stats.out,
+          outType: stats.outType,
+          retired: stats.retired
+        };
+      }).filter(s => s.balls > 0 || s.out || s.retired);
+    }
+
+    function buildBowlStatsFromData(team, bowlersData) {
+      const players = matchState.setup[team].players;
+      return players.map(p => {
+        const stats = bowlersData[p] || { balls: 0, runs: 0, wickets: 0 };
         return { name: p, balls: stats.balls, runs: stats.runs, wickets: stats.wickets };
       }).filter(s => s.balls > 0);
     }
