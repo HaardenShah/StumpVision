@@ -192,6 +192,7 @@ try {
             'name' => trim($in['name']),
             'code' => $playerCode,
             'team' => trim($in['team'] ?? ''),
+            'player_type' => trim($in['player_type'] ?? ''),
             'registered_at' => time(),
             'registered_by' => $_SESSION['admin_username'] ?? 'admin'
         ];
@@ -224,6 +225,7 @@ try {
 
         if (isset($in['name'])) $players[$playerId]['name'] = trim($in['name']);
         if (isset($in['team'])) $players[$playerId]['team'] = trim($in['team']);
+        if (isset($in['player_type'])) $players[$playerId]['player_type'] = trim($in['player_type']);
         $players[$playerId]['updated_at'] = time();
 
         if (savePlayers($players)) {
