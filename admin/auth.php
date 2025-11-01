@@ -1,5 +1,20 @@
 <?php
 declare(strict_types=1);
+
+// Configure session settings for better reliability
+ini_set('session.cookie_httponly', '1');
+ini_set('session.use_strict_mode', '1');
+ini_set('session.cookie_samesite', 'Lax');
+
+// Ensure sessions directory exists
+$sessionPath = sys_get_temp_dir() . '/stumpvision_sessions';
+if (!is_dir($sessionPath)) {
+    @mkdir($sessionPath, 0700, true);
+}
+if (is_dir($sessionPath) && is_writable($sessionPath)) {
+    session_save_path($sessionPath);
+}
+
 session_start();
 require_once __DIR__ . '/config-helper.php';
 
@@ -51,8 +66,6 @@ function loginAdmin(string $username, string $password): bool
         $_SESSION['admin_username'] = $username;
         $_SESSION['admin_login_time'] = time();
         $_SESSION['must_change_password'] = Config::isUsingDefaultPassword();
-        // Regenerate CSRF token on login for security
-        unset($_SESSION['admin_csrf_token']);
         return true;
     }
     return false;
