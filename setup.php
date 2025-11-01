@@ -454,13 +454,17 @@
       }
 
       try {
+        const payload = { name: name.trim(), code: code.trim().toUpperCase() };
+        console.log('Verification request:', payload);
+
         const response = await fetch('/api/players.php?action=verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: name.trim(), code: code.trim().toUpperCase() })
+          body: JSON.stringify(payload)
         });
 
         const result = await response.json();
+        console.log('Verification response:', result);
         return result;
       } catch (err) {
         console.error('Verification error:', err);
