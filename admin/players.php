@@ -30,18 +30,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['csrf_token'])) {
                     $players = json_decode(file_get_contents($playersFile), true) ?: [];
                 }
 
-                // Generate player ID
-                $playerId = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $name));
+                // Check if player name already exists
+                $nameSlug = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $name));
+                $nameExists = false;
+                foreach ($players as $p) {
+                    if (strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $p['name'])) === $nameSlug) {
+                        $nameExists = true;
+                        break;
+                    }
+                }
 
-                // Check if player already exists
-                if (isset($players[$playerId])) {
-                    $message = 'Player already exists';
+                if ($nameExists) {
+                    $message = 'A player with this name already exists';
                     $messageType = 'error';
                 } else {
+                    // Generate UUID
+                    $playerId = sprintf(
+                        '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+                        mt_rand(0, 0xffff),
+                        mt_rand(0, 0xffff),
+                        mt_rand(0, 0xffff),
+                        mt_rand(0, 0x0fff) | 0x4000,
+                        mt_rand(0, 0x3fff) | 0x8000,
+                        mt_rand(0, 0xffff),
+                        mt_rand(0, 0xffff),
+                        mt_rand(0, 0xffff)
+                    );
+
+                    // Generate player code
+                    $parts = preg_split('/\s+/', trim($name));
+                    $firstName = $parts[0] ?? '';
+                    $lastName = $parts[count($parts) - 1] ?? '';
+                    $prefix = strtoupper(
+                        substr($firstName, 0, 2) .
+                        substr($lastName, 0, 2)
+                    );
+                    if (strlen($prefix) < 2) {
+                        $prefix = strtoupper(substr($name, 0, 4));
+                    }
+                    $prefix = str_pad($prefix, 4, 'X');
+
+                    // Generate unique code
+                    $codeUnique = false;
+                    $attempts = 0;
+                    while (!$codeUnique && $attempts < 100) {
+                        $number = str_pad((string)mt_rand(1000, 9999), 4, '0', STR_PAD_LEFT);
+                        $playerCode = $prefix . '-' . $number;
+
+                        $codeUnique = true;
+                        foreach ($players as $p) {
+                            if (($p['code'] ?? '') === $playerCode) {
+                                $codeUnique = false;
+                                break;
+                            }
+                        }
+                        $attempts++;
+                    }
+
+                    if (!$codeUnique) {
+                        $playerCode = $prefix . '-' . substr((string)time(), -4);
+                    }
+
                     // Add new player
                     $players[$playerId] = [
                         'id' => $playerId,
                         'name' => $name,
+                        'code' => $playerCode,
                         'team' => $team,
                         'registered_at' => time(),
                         'registered_by' => $_SESSION['admin_username'] ?? 'admin'
@@ -54,7 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['csrf_token'])) {
                     }
 
                     if (file_put_contents($playersFile, json_encode($players, JSON_PRETTY_PRINT)) !== false) {
-                        $message = 'Player registered successfully';
+                        $message = 'Player registered successfully with code: ' . $playerCode;
                         $messageType = 'success';
                     } else {
                         $message = 'Failed to save player data';
@@ -87,9 +141,16 @@ if (is_file($playersFile)) {
     <div class="container">
         <h1>Player Registry</h1>
 
-        <p style="margin-bottom: 20px; color: var(--muted);">
-            Register official players here. Only stats from verified matches with registered players will count toward their career totals.
-        </p>
+        <div style="margin-bottom: 20px; padding: 15px; background: var(--bg-secondary, #1a1a1a); border-left: 3px solid var(--accent, #4CAF50); border-radius: 4px;">
+            <p style="margin: 0 0 10px 0;"><strong>Player Registration & Verification</strong></p>
+            <p style="margin: 0; color: var(--muted); line-height: 1.6;">
+                Register official players here. Each player receives a unique <strong>Player Code</strong> (e.g., JOSM-1234) that they can use during match setup to verify their identity.
+                Only stats from verified matches with verified players will count toward official career totals.
+            </p>
+            <p style="margin: 10px 0 0 0; color: var(--muted); line-height: 1.6;">
+                <strong>How it works:</strong> During match setup, players can enter their code to link their performance. Without a code, they're recorded as "guest players" for pickup games.
+            </p>
+        </div>
 
         <?php if ($message): ?>
             <div class="alert alert-<?php echo $messageType; ?>">
@@ -127,6 +188,7 @@ if (is_file($playersFile)) {
                             <thead>
                                 <tr>
                                     <th>Name</th>
+                                    <th>Player Code</th>
                                     <th>Team</th>
                                     <th>Registered</th>
                                     <th>Actions</th>
@@ -136,6 +198,11 @@ if (is_file($playersFile)) {
                                 <?php foreach ($players as $player): ?>
                                     <tr>
                                         <td><strong><?php echo htmlspecialchars($player['name']); ?></strong></td>
+                                        <td>
+                                            <code style="background: var(--bg-secondary, #1a1a1a); padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; color: var(--accent, #4CAF50);">
+                                                <?php echo htmlspecialchars($player['code'] ?? 'N/A'); ?>
+                                            </code>
+                                        </td>
                                         <td><?php echo htmlspecialchars($player['team'] ?? '-'); ?></td>
                                         <td><?php echo date('M j, Y', $player['registered_at'] ?? time()); ?></td>
                                         <td>

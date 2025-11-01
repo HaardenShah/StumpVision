@@ -571,13 +571,16 @@
         matchState.battingTeam = matchState.setup.tossWinner === 'teamA' ? 'teamB' : 'teamA';
       }
       
+      // Handle both old format (array of strings) and new format (array of objects)
       matchState.setup.teamA.players.forEach(p => {
-        matchState.batsmen[p] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false, outType: null, retired: false };
-        matchState.bowlers[p] = { overs: 0, balls: 0, runs: 0, wickets: 0, maidens: 0, dots: 0 };
+        const playerName = typeof p === 'string' ? p : p.name;
+        matchState.batsmen[playerName] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false, outType: null, retired: false };
+        matchState.bowlers[playerName] = { overs: 0, balls: 0, runs: 0, wickets: 0, maidens: 0, dots: 0 };
       });
       matchState.setup.teamB.players.forEach(p => {
-        matchState.batsmen[p] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false, outType: null, retired: false };
-        matchState.bowlers[p] = { overs: 0, balls: 0, runs: 0, wickets: 0, maidens: 0, dots: 0 };
+        const playerName = typeof p === 'string' ? p : p.name;
+        matchState.batsmen[playerName] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false, outType: null, retired: false };
+        matchState.bowlers[playerName] = { overs: 0, balls: 0, runs: 0, wickets: 0, maidens: 0, dots: 0 };
       });
       
       promptStartingPlayers();
@@ -594,11 +597,13 @@
       } else {
         const battingPlayers = matchState.setup[matchState.battingTeam].players;
         const bowlingPlayers = matchState.setup[matchState.bowlingTeam].players;
-        matchState.striker = battingPlayers[0];
-        matchState.nonStriker = battingPlayers[1];
-        matchState.bowler = bowlingPlayers[0];
+
+        // Handle both old format (strings) and new format (objects)
+        matchState.striker = typeof battingPlayers[0] === 'string' ? battingPlayers[0] : battingPlayers[0].name;
+        matchState.nonStriker = typeof battingPlayers[1] === 'string' ? battingPlayers[1] : battingPlayers[1].name;
+        matchState.bowler = typeof bowlingPlayers[0] === 'string' ? bowlingPlayers[0] : bowlingPlayers[0].name;
       }
-      
+
       // Initialize first partnership
       matchState.currentPartnership = {
         runs: 0,
@@ -606,7 +611,7 @@
         batsman1: matchState.striker,
         batsman2: matchState.nonStriker
       };
-      
+
       console.log('Starting players:', { striker: matchState.striker, nonStriker: matchState.nonStriker, bowler: matchState.bowler });
     }
 
@@ -1911,13 +1916,20 @@
     function buildBatStats(team) {
       const players = matchState.setup[team].players;
       return players.map(p => {
-        const stats = matchState.batsmen[p] || { runs: 0, balls: 0, fours: 0, sixes: 0, out: false, outType: null, retired: false };
-        return { 
-          name: p, 
-          runs: stats.runs, 
-          balls: stats.balls, 
-          fours: stats.fours, 
-          sixes: stats.sixes, 
+        // Handle both old format (string) and new format (object)
+        const playerName = typeof p === 'string' ? p : p.name;
+        const playerId = typeof p === 'object' ? p.playerId : null;
+        const verified = typeof p === 'object' ? p.verified : false;
+
+        const stats = matchState.batsmen[playerName] || { runs: 0, balls: 0, fours: 0, sixes: 0, out: false, outType: null, retired: false };
+        return {
+          name: playerName,
+          playerId: playerId,
+          verified: verified,
+          runs: stats.runs,
+          balls: stats.balls,
+          fours: stats.fours,
+          sixes: stats.sixes,
           out: stats.out,
           outType: stats.outType,
           retired: stats.retired
@@ -1928,8 +1940,20 @@
     function buildBowlStats(team) {
       const players = matchState.setup[team].players;
       return players.map(p => {
-        const stats = matchState.bowlers[p] || { balls: 0, runs: 0, wickets: 0 };
-        return { name: p, balls: stats.balls, runs: stats.runs, wickets: stats.wickets };
+        // Handle both old format (string) and new format (object)
+        const playerName = typeof p === 'string' ? p : p.name;
+        const playerId = typeof p === 'object' ? p.playerId : null;
+        const verified = typeof p === 'object' ? p.verified : false;
+
+        const stats = matchState.bowlers[playerName] || { balls: 0, runs: 0, wickets: 0 };
+        return {
+          name: playerName,
+          playerId: playerId,
+          verified: verified,
+          balls: stats.balls,
+          runs: stats.runs,
+          wickets: stats.wickets
+        };
       }).filter(s => s.balls > 0);
     }
 
@@ -1937,9 +1961,16 @@
     function buildBatStatsFromData(team, batsmenData) {
       const players = matchState.setup[team].players;
       return players.map(p => {
-        const stats = batsmenData[p] || { runs: 0, balls: 0, fours: 0, sixes: 0, out: false, outType: null, retired: false };
+        // Handle both old format (string) and new format (object)
+        const playerName = typeof p === 'string' ? p : p.name;
+        const playerId = typeof p === 'object' ? p.playerId : null;
+        const verified = typeof p === 'object' ? p.verified : false;
+
+        const stats = batsmenData[playerName] || { runs: 0, balls: 0, fours: 0, sixes: 0, out: false, outType: null, retired: false };
         return {
-          name: p,
+          name: playerName,
+          playerId: playerId,
+          verified: verified,
           runs: stats.runs,
           balls: stats.balls,
           fours: stats.fours,
@@ -1954,8 +1985,20 @@
     function buildBowlStatsFromData(team, bowlersData) {
       const players = matchState.setup[team].players;
       return players.map(p => {
-        const stats = bowlersData[p] || { balls: 0, runs: 0, wickets: 0 };
-        return { name: p, balls: stats.balls, runs: stats.runs, wickets: stats.wickets };
+        // Handle both old format (string) and new format (object)
+        const playerName = typeof p === 'string' ? p : p.name;
+        const playerId = typeof p === 'object' ? p.playerId : null;
+        const verified = typeof p === 'object' ? p.verified : false;
+
+        const stats = bowlersData[playerName] || { balls: 0, runs: 0, wickets: 0 };
+        return {
+          name: playerName,
+          playerId: playerId,
+          verified: verified,
+          balls: stats.balls,
+          runs: stats.runs,
+          wickets: stats.wickets
+        };
       }).filter(s => s.balls > 0);
     }
 
