@@ -147,6 +147,82 @@ try {
         exit;
     }
 
+    // VERIFY: Verify player code (public)
+    if ($action === 'verify' && $method === 'POST') {
+        $raw = file_get_contents('php://input');
+        $in = json_decode($raw, true);
+
+        if (!is_array($in) || empty($in['name']) || empty($in['code'])) {
+            echo json_encode(['ok' => false, 'err' => 'invalid_input']);
+            exit;
+        }
+
+        $players = loadPlayers();
+        $code = strtoupper(trim($in['code']));
+        $name = trim($in['name']);
+
+        // Debug logging - remove after testing
+        error_log("Player verification attempt - Code: {$code}, Name: {$name}");
+        error_log("Total players in DB: " . count($players));
+
+        // Find player by code
+        $found = null;
+        foreach ($players as $player) {
+            error_log("Checking player code: " . ($player['code'] ?? 'NO_CODE') . " against: {$code}");
+            if (($player['code'] ?? '') === $code) {
+                $found = $player;
+                error_log("Match found for code: {$code}");
+                break;
+            }
+        }
+
+        if ($found) {
+            // Return player info for verification
+            echo json_encode([
+                'ok' => true,
+                'verified' => true,
+                'player' => [
+                    'id' => $found['id'],
+                    'name' => $found['name'],
+                    'team' => $found['team'] ?? '',
+                    'code' => $found['code']
+                ]
+            ]);
+        } else {
+            error_log("No match found for code: {$code}");
+            echo json_encode(['ok' => true, 'verified' => false]);
+        }
+        exit;
+    }
+
+    // SEARCH: Search players by name (public)
+    if ($action === 'search' && $method === 'GET') {
+        $query = strtolower(trim($_GET['q'] ?? ''));
+        if (empty($query)) {
+            echo json_encode(['ok' => true, 'players' => []]);
+            exit;
+        }
+
+        $players = loadPlayers();
+        $results = [];
+
+        foreach ($players as $player) {
+            $playerName = strtolower($player['name']);
+            // Match if query is in player name
+            if (strpos($playerName, $query) !== false) {
+                $results[] = [
+                    'id' => $player['id'],
+                    'name' => $player['name'],
+                    'code' => $player['code'],
+                    'team' => $player['team'] ?? ''
+                ];
+            }
+        }
+
+        echo json_encode(['ok' => true, 'players' => $results]);
+        exit;
+    }
+
     // Admin-only actions below
     if (!isAdmin()) {
         http_response_code(403);
@@ -261,85 +337,6 @@ try {
         } else {
             echo json_encode(['ok' => false, 'err' => 'save_failed']);
         }
-        exit;
-    }
-
-    // VERIFY: Verify player code (public)
-    if ($action === 'verify' && $method === 'POST') {
-        $raw = file_get_contents('php://input');
-        $in = json_decode($raw, true);
-
-        if (!is_array($in) || empty($in['name']) || empty($in['code'])) {
-            echo json_encode(['ok' => false, 'err' => 'invalid_input']);
-            exit;
-        }
-
-        $players = loadPlayers();
-        $code = strtoupper(trim($in['code']));
-        $name = trim($in['name']);
-
-        // Debug logging - remove after testing
-        error_log("Player verification attempt - Code: {$code}, Name: {$name}");
-        error_log("Total players in DB: " . count($players));
-
-        // Find player by code
-        $found = null;
-        foreach ($players as $player) {
-            error_log("Checking player code: " . ($player['code'] ?? 'NO_CODE') . " against: {$code}");
-            if (($player['code'] ?? '') === $code) {
-                $found = $player;
-                error_log("Match found for code: {$code}");
-                break;
-            }
-        }
-
-        if ($found) {
-            // Return player info for verification
-            echo json_encode([
-                'ok' => true,
-                'verified' => true,
-                'player' => [
-                    'id' => $found['id'],
-                    'name' => $found['name'],
-                    'team' => $found['team'] ?? '',
-                    'code' => $found['code']
-                ]
-            ]);
-        } else {
-            error_log("No match found for code: {$code}");
-            echo json_encode(['ok' => true, 'verified' => false]);
-        }
-        exit;
-    }
-
-    // SEARCH: Search players by name (public)
-    if ($action === 'search' && $method === 'GET') {
-        $query = strtolower(trim($_GET['q'] ?? ''));
-        if (empty($query)) {
-            echo json_encode(['ok' => true, 'players' => []]);
-            exit;
-        }
-
-        $players = loadPlayers();
-        $results = [];
-
-        foreach ($players as $player) {
-            $playerName = strtolower($player['name']);
-            // Match if query is in player name
-            if (strpos($playerName, $query) !== false) {
-                $results[] = [
-                    'id' => $player['id'],
-                    'name' => $player['name'],
-                    'team' => $player['team'] ?? '',
-                    'code' => $player['code'] ?? ''
-                ];
-            }
-        }
-
-        // Limit results
-        $results = array_slice($results, 0, 10);
-
-        echo json_encode(['ok' => true, 'players' => $results]);
         exit;
     }
 
