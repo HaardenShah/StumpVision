@@ -551,18 +551,367 @@
       }
     }
 
-    function init() {
+    async function loadScheduledMatch(matchId) {
+      try {
+        const response = await fetch(`api/scheduled-matches.php?action=get&id=${matchId}`);
+        const data = await response.json();
+
+        if (!data.ok) {
+          throw new Error(data.err === 'not_found' ? 'Match not found' : 'Failed to load scheduled match');
+        }
+
+        showScheduledMatchView(data.match);
+      } catch (error) {
+        console.error('Error loading scheduled match:', error);
+        showScheduledMatchError(error.message);
+      }
+    }
+
+    function showScheduledMatchView(match) {
+      const formatDate = (dateStr) => {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+      };
+
+      const formatTime = (timeStr) => {
+        if (!timeStr) return 'Not set';
+        const [hours, minutes] = timeStr.split(':');
+        const hour = parseInt(hours);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const displayHour = hour % 12 || 12;
+        return `${displayHour}:${minutes} ${ampm}`;
+      };
+
+      // Replace entire body content with scheduled match view
+      document.body.innerHTML = `
+        <style>
+          .scheduled-view {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            font-family: system-ui, -apple-system, sans-serif;
+          }
+          .scheduled-header {
+            text-align: center;
+            margin-bottom: 30px;
+          }
+          .scheduled-brand {
+            font-size: 32px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+          }
+          .scheduled-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+          }
+          .scheduled-match-id {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 12px;
+            margin-bottom: 20px;
+          }
+          .scheduled-match-id-label {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+          }
+          .scheduled-match-id-value {
+            font-size: 56px;
+            font-weight: 700;
+            color: white;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 8px;
+          }
+          .scheduled-datetime {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+          }
+          .scheduled-datetime-card {
+            background: var(--card);
+            border: 2px solid var(--line);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+          }
+          .scheduled-datetime-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+          }
+          .scheduled-datetime-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--ink);
+          }
+          .scheduled-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px var(--shadow);
+            margin-bottom: 20px;
+          }
+          .scheduled-section-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: var(--ink);
+          }
+          .scheduled-details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+          }
+          .scheduled-detail-item {
+            background: var(--bg);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 15px;
+          }
+          .scheduled-detail-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+          }
+          .scheduled-detail-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--ink);
+          }
+          .scheduled-players-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+          }
+          .scheduled-player-chip {
+            background: var(--bg);
+            border: 2px solid var(--line);
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+          }
+          .scheduled-player-number {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            flex-shrink: 0;
+          }
+          .scheduled-player-info {
+            flex: 1;
+            min-width: 0;
+          }
+          .scheduled-player-name {
+            font-weight: 600;
+            color: var(--ink);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .scheduled-player-code {
+            font-size: 12px;
+            color: var(--muted);
+            font-family: 'Courier New', monospace;
+          }
+          .scheduled-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 30px;
+          }
+          .scheduled-btn {
+            flex: 1;
+            padding: 16px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+          }
+          .scheduled-btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+          }
+          .scheduled-btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+          }
+          .scheduled-btn-secondary {
+            background: var(--card);
+            color: var(--ink);
+            border: 2px solid var(--line);
+          }
+          .scheduled-btn-secondary:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+          }
+          @media (max-width: 640px) {
+            .scheduled-match-id-value {
+              font-size: 36px;
+              letter-spacing: 4px;
+            }
+            .scheduled-datetime {
+              grid-template-columns: 1fr;
+            }
+            .scheduled-buttons {
+              flex-direction: column;
+            }
+            .scheduled-players-grid {
+              grid-template-columns: 1fr;
+            }
+          }
+        </style>
+        <div class="scheduled-view">
+          <div class="scheduled-header">
+            <div class="scheduled-brand">StumpVision</div>
+            <div class="scheduled-badge">Scheduled Match</div>
+          </div>
+
+          <div class="scheduled-match-id">
+            <div class="scheduled-match-id-label">Match ID</div>
+            <div class="scheduled-match-id-value">${match.id}</div>
+          </div>
+
+          <div class="scheduled-datetime">
+            <div class="scheduled-datetime-card">
+              <div class="scheduled-datetime-label">📅 Date</div>
+              <div class="scheduled-datetime-value">${formatDate(match.scheduled_date)}</div>
+            </div>
+            <div class="scheduled-datetime-card">
+              <div class="scheduled-datetime-label">🕐 Time</div>
+              <div class="scheduled-datetime-value">${formatTime(match.scheduled_time)}</div>
+            </div>
+          </div>
+
+          ${match.match_name ? `
+          <div class="scheduled-card">
+            <div class="scheduled-section-title">${match.match_name}</div>
+          </div>
+          ` : ''}
+
+          <div class="scheduled-card">
+            <div class="scheduled-section-title">Match Details</div>
+            <div class="scheduled-details-grid">
+              <div class="scheduled-detail-item">
+                <div class="scheduled-detail-label">Format</div>
+                <div class="scheduled-detail-value">${match.matchFormat === 'limited' ? 'Limited Overs' : 'Test Match'}</div>
+              </div>
+              <div class="scheduled-detail-item">
+                <div class="scheduled-detail-label">Overs</div>
+                <div class="scheduled-detail-value">${match.oversPerInnings}</div>
+              </div>
+              <div class="scheduled-detail-item">
+                <div class="scheduled-detail-label">Wickets</div>
+                <div class="scheduled-detail-value">${match.wicketsLimit}</div>
+              </div>
+              <div class="scheduled-detail-item">
+                <div class="scheduled-detail-label">Players</div>
+                <div class="scheduled-detail-value">${match.players.length}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="scheduled-card">
+            <div class="scheduled-section-title">Players (${match.players.length})</div>
+            <div class="scheduled-players-grid">
+              ${match.players.map((player, index) => `
+                <div class="scheduled-player-chip">
+                  <div class="scheduled-player-number">${index + 1}</div>
+                  <div class="scheduled-player-info">
+                    <div class="scheduled-player-name">${player.name}</div>
+                    <div class="scheduled-player-code">${player.code}</div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="scheduled-buttons">
+            <a href="setup.php?match=${match.id}" class="scheduled-btn scheduled-btn-primary">
+              Start Match Setup
+            </a>
+            <a href="index.php" class="scheduled-btn scheduled-btn-secondary">
+              Back to Home
+            </a>
+          </div>
+        </div>
+      `;
+    }
+
+    function showScheduledMatchError(message) {
+      document.body.innerHTML = `
+        <div style="max-width: 600px; margin: 100px auto; padding: 20px; text-align: center; font-family: system-ui;">
+          <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+          <h2 style="color: var(--ink); margin-bottom: 10px;">Error Loading Match</h2>
+          <p style="color: var(--muted); margin-bottom: 30px;">${message}</p>
+          <a href="index.php" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 8px; text-decoration: none; font-weight: 600;">
+            Back to Home
+          </a>
+        </div>
+      `;
+    }
+
+    async function init() {
       console.log('Initializing...');
+
+      // Check if loading a scheduled match from URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const scheduledId = urlParams.get('scheduled');
+
+      if (scheduledId) {
+        console.log('Loading scheduled match:', scheduledId);
+        await loadScheduledMatch(scheduledId);
+        return;
+      }
+
       const saved = localStorage.getItem('stumpvision_match');
       if (!saved) {
         console.log('No match data, redirecting to setup');
         window.location.href = 'setup.php';
         return;
       }
-      
+
       matchState.setup = JSON.parse(saved);
       console.log('Match setup loaded:', matchState.setup);
-      
+
       if (matchState.setup.tossDecision === 'bat') {
         matchState.battingTeam = matchState.setup.tossWinner;
         matchState.bowlingTeam = matchState.setup.tossWinner === 'teamA' ? 'teamB' : 'teamA';
@@ -570,7 +919,7 @@
         matchState.bowlingTeam = matchState.setup.tossWinner;
         matchState.battingTeam = matchState.setup.tossWinner === 'teamA' ? 'teamB' : 'teamA';
       }
-      
+
       // Handle both old format (array of strings) and new format (array of objects)
       matchState.setup.teamA.players.forEach(p => {
         const playerName = typeof p === 'string' ? p : p.name;
@@ -582,7 +931,7 @@
         matchState.batsmen[playerName] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false, outType: null, retired: false };
         matchState.bowlers[playerName] = { overs: 0, balls: 0, runs: 0, wickets: 0, maidens: 0, dots: 0 };
       });
-      
+
       promptStartingPlayers();
       updateDisplay();
       updateSettings();

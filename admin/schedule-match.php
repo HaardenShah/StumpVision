@@ -225,6 +225,10 @@ $csrfToken = getAdminCsrfToken();
                             <label for="scheduledDate">Scheduled Date</label>
                             <input type="date" id="scheduledDate" required>
                         </div>
+                        <div class="form-group">
+                            <label for="scheduledTime">Scheduled Time</label>
+                            <input type="time" id="scheduledTime" value="10:00" required>
+                        </div>
                     </div>
                     <div class="form-grid">
                         <div class="form-group">
@@ -321,6 +325,7 @@ $csrfToken = getAdminCsrfToken();
             const payload = {
                 match_name: document.getElementById('matchName').value,
                 scheduled_date: document.getElementById('scheduledDate').value,
+                scheduled_time: document.getElementById('scheduledTime').value,
                 matchFormat: document.getElementById('matchFormat').value,
                 oversPerInnings: parseInt(document.getElementById('oversPerInnings').value),
                 wicketsLimit: parseInt(document.getElementById('wicketsLimit').value),
@@ -378,11 +383,24 @@ $csrfToken = getAdminCsrfToken();
                         return;
                     }
 
-                    container.innerHTML = result.matches.map(match => `
+                    container.innerHTML = result.matches.map(match => {
+                        const formatTime = (timeStr) => {
+                            if (!timeStr) return '';
+                            const [hours, minutes] = timeStr.split(':');
+                            const hour = parseInt(hours);
+                            const ampm = hour >= 12 ? 'PM' : 'AM';
+                            const displayHour = hour % 12 || 12;
+                            return `${displayHour}:${minutes} ${ampm}`;
+                        };
+
+                        return `
                         <div class="match-card">
                             <div class="match-card-header">
                                 <div class="match-id-badge">${match.id}</div>
-                                <div class="match-date">${new Date(match.scheduled_date).toLocaleDateString()}</div>
+                                <div class="match-date">
+                                    ${new Date(match.scheduled_date).toLocaleDateString()}
+                                    ${match.scheduled_time ? ` at ${formatTime(match.scheduled_time)}` : ''}
+                                </div>
                             </div>
                             <div>
                                 ${match.match_name ? `<strong>${match.match_name}</strong><br>` : ''}
@@ -394,10 +412,12 @@ $csrfToken = getAdminCsrfToken();
                             </div>
                             <div class="action-buttons">
                                 <button class="btn btn-secondary" onclick="viewMatch('${match.id}')">View</button>
+                                <button class="btn btn-secondary" onclick="shareMatch('${match.id}')">Share Link</button>
                                 <button class="btn btn-danger" onclick="deleteMatch('${match.id}')">Delete</button>
                             </div>
                         </div>
-                    `).join('');
+                        `;
+                    }).join('');
                 }
             } catch (err) {
                 console.error('Error loading matches:', err);
@@ -429,8 +449,21 @@ $csrfToken = getAdminCsrfToken();
             }
         }
 
+        function shareMatch(matchId) {
+            const baseUrl = window.location.origin;
+            const shareUrl = `${baseUrl}/index.php?scheduled=${matchId}`;
+
+            // Copy to clipboard
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                alert(`Share link copied to clipboard!\n\nURL: ${shareUrl}\n\nShare this link with your group before the match.`);
+            }).catch(() => {
+                // Fallback if clipboard API fails
+                prompt('Copy this link to share:', shareUrl);
+            });
+        }
+
         function viewMatch(matchId) {
-            window.location.href = `view-scheduled-match.php?id=${matchId}`;
+            window.location.href = `scheduled.php?match=${matchId}`;
         }
 
         // Load matches on page load
