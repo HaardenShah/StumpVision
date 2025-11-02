@@ -148,18 +148,19 @@ try {
     }
 
     // VERIFY: Verify player code (public)
+    // Supports both code-only lookup and name+code verification
     if ($action === 'verify' && $method === 'POST') {
         $raw = file_get_contents('php://input');
         $in = json_decode($raw, true);
 
-        if (!is_array($in) || empty($in['name']) || empty($in['code'])) {
+        if (!is_array($in) || empty($in['code'])) {
             echo json_encode(['ok' => false, 'err' => 'invalid_input']);
             exit;
         }
 
         $players = loadPlayers();
         $code = strtoupper(trim($in['code']));
-        $name = trim($in['name']);
+        $name = isset($in['name']) ? trim($in['name']) : '';
 
         // Debug logging - remove after testing
         error_log("Player verification attempt - Code: {$code}, Name: {$name}");
