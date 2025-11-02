@@ -115,6 +115,7 @@ try {
         $liveSession = [
             'live_id' => $liveId,
             'match_id' => $in['match_id'],
+            'scheduled_match_id' => $in['scheduled_match_id'] ?? null,
             'created_at' => time(),
             'owner_session' => session_id(),
             'active' => true,
