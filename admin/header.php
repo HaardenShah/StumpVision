@@ -7,6 +7,7 @@
         </div>
         <nav class="main-nav">
             <a href="index.php">Dashboard</a>
+            <a href="schedule-match.php">Schedule Match</a>
             <a href="matches.php">Matches</a>
             <a href="players.php">Players</a>
             <a href="stats.php">Stats</a>
