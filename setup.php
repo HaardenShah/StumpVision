@@ -314,6 +314,120 @@
       font-size: 14px;
       border: 2px solid #fca5a5;
     }
+
+    .quick-add-section {
+      background: #f0f9ff;
+      border: 2px dashed var(--accent);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .quick-add-section {
+        background: #082f49;
+      }
+    }
+
+    .quick-add-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .quick-add-title::before {
+      content: '⚡';
+      font-size: 16px;
+    }
+
+    .quick-add-input {
+      font-family: monospace;
+      text-transform: uppercase;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .quick-add-hint {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .quick-add-btn {
+      width: 100%;
+      padding: 8px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: all 0.2s;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .quick-add-btn:hover {
+      opacity: 0.9;
+    }
+
+    .quick-add-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .bulk-status {
+      font-size: 12px;
+      margin-top: 8px;
+      padding: 8px;
+      border-radius: 6px;
+      display: none;
+    }
+
+    .bulk-status.active {
+      display: block;
+    }
+
+    .bulk-status.info {
+      background: #dbeafe;
+      color: #1e40af;
+      border: 1px solid #3b82f6;
+    }
+
+    .bulk-status.success {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #16a34a;
+    }
+
+    .bulk-status.error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #dc2626;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .bulk-status.info {
+        background: #1e3a8a;
+        color: #93c5fd;
+      }
+      .bulk-status.success {
+        background: #14532d;
+        color: #86efac;
+      }
+      .bulk-status.error {
+        background: #7f1d1d;
+        color: #fca5a5;
+      }
+    }
   </style>
 </head>
 <body>
@@ -373,6 +487,16 @@
       </div>
       <div class="form-group">
         <label>Players</label>
+
+        <!-- Quick Add Section -->
+        <div class="quick-add-section">
+          <div class="quick-add-title">Quick Add by Code</div>
+          <input type="text" id="teamAQuickAdd" placeholder="JOSM-1234 JADO-5678 MIWI-9012" class="quick-add-input">
+          <div class="bulk-status" id="teamABulkStatus"></div>
+          <button type="button" class="quick-add-btn" id="teamAQuickAddBtn">Add Players</button>
+          <p class="quick-add-hint">Enter one or more player codes separated by spaces</p>
+        </div>
+
         <div class="player-input-container">
           <input type="text" id="teamAPlayerInput" placeholder="Player name" class="players-input">
           <div class="code-input" id="teamACodeInput">
@@ -382,7 +506,7 @@
           <button type="button" class="add-player-btn" id="teamAAddBtn">Add Player</button>
         </div>
         <div class="player-tags" id="teamAPlayers"></div>
-        <p class="hint">Enter name, optionally add player code for verification</p>
+        <p class="hint">Or enter name and optionally add player code for verification</p>
       </div>
     </div>
 
@@ -394,6 +518,16 @@
       </div>
       <div class="form-group">
         <label>Players</label>
+
+        <!-- Quick Add Section -->
+        <div class="quick-add-section">
+          <div class="quick-add-title">Quick Add by Code</div>
+          <input type="text" id="teamBQuickAdd" placeholder="JOSM-1234 JADO-5678 MIWI-9012" class="quick-add-input">
+          <div class="bulk-status" id="teamBBulkStatus"></div>
+          <button type="button" class="quick-add-btn" id="teamBQuickAddBtn">Add Players</button>
+          <p class="quick-add-hint">Enter one or more player codes separated by spaces</p>
+        </div>
+
         <div class="player-input-container">
           <input type="text" id="teamBPlayerInput" placeholder="Player name" class="players-input">
           <div class="code-input" id="teamBCodeInput">
@@ -403,7 +537,7 @@
           <button type="button" class="add-player-btn" id="teamBAddBtn">Add Player</button>
         </div>
         <div class="player-tags" id="teamBPlayers"></div>
-        <p class="hint">Enter name, optionally add player code for verification</p>
+        <p class="hint">Or enter name and optionally add player code for verification</p>
       </div>
     </div>
 
@@ -471,6 +605,110 @@
         console.error('Verification error:', err);
         return { verified: false, error: true };
       }
+    }
+
+    // Quick add by code only
+    async function lookupPlayerByCode(code) {
+      if (!code || !code.trim()) {
+        return { verified: false };
+      }
+
+      try {
+        const payload = { code: code.trim().toUpperCase() };
+        console.log('Code lookup request:', payload);
+
+        const response = await fetch('/api/players.php?action=verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        console.log('Code lookup response:', result);
+        return result;
+      } catch (err) {
+        console.error('Code lookup error:', err);
+        return { verified: false, error: true };
+      }
+    }
+
+    async function quickAddPlayers(team, codesInput) {
+      if (!codesInput || !codesInput.trim()) {
+        showBulkStatus(team, 'Please enter at least one player code', 'error');
+        return;
+      }
+
+      // Parse codes (support space, comma, or newline separated)
+      const codes = codesInput
+        .trim()
+        .toUpperCase()
+        .split(/[\s,\n]+/)
+        .filter(c => c.length > 0);
+
+      if (codes.length === 0) {
+        showBulkStatus(team, 'No valid codes found', 'error');
+        return;
+      }
+
+      showBulkStatus(team, `Looking up ${codes.length} player code(s)...`, 'info');
+
+      let added = 0;
+      let failed = 0;
+      const failedCodes = [];
+
+      for (const code of codes) {
+        // Check if already in team
+        const exists = state[team].players.some(p => p.code === code);
+        if (exists) {
+          console.log(`Player with code ${code} already in team`);
+          failed++;
+          failedCodes.push(`${code} (already added)`);
+          continue;
+        }
+
+        // Lookup player
+        const result = await lookupPlayerByCode(code);
+
+        if (result.ok && result.verified && result.player) {
+          // Add to team
+          state[team].players.push({
+            name: result.player.name,
+            verified: true,
+            playerId: result.player.id,
+            code: result.player.code
+          });
+          added++;
+        } else {
+          failed++;
+          failedCodes.push(`${code} (not found)`);
+        }
+      }
+
+      renderPlayers(team);
+
+      // Show results
+      let message = `✓ Added ${added} player(s)`;
+      if (failed > 0) {
+        message += ` • ${failed} failed: ${failedCodes.join(', ')}`;
+      }
+      showBulkStatus(team, message, failed > 0 ? 'error' : 'success');
+
+      // Clear input if all succeeded
+      if (failed === 0) {
+        document.getElementById(`${team}QuickAdd`).value = '';
+        setTimeout(() => hideBulkStatus(team), 3000);
+      }
+    }
+
+    function showBulkStatus(team, message, type) {
+      const status = document.getElementById(`${team}BulkStatus`);
+      status.textContent = message;
+      status.className = `bulk-status active ${type}`;
+    }
+
+    function hideBulkStatus(team) {
+      const status = document.getElementById(`${team}BulkStatus`);
+      status.classList.remove('active');
     }
 
     async function addPlayer(team, name, code = '') {
@@ -618,6 +856,23 @@
       }
     }
 
+    // Event listeners for Team A Quick Add
+    const teamAQuickAdd = document.getElementById('teamAQuickAdd');
+    const teamAQuickAddBtn = document.getElementById('teamAQuickAddBtn');
+
+    teamAQuickAdd.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const codes = teamAQuickAdd.value;
+        quickAddPlayers('teamA', codes);
+      }
+    });
+
+    teamAQuickAddBtn.addEventListener('click', () => {
+      const codes = teamAQuickAdd.value;
+      quickAddPlayers('teamA', codes);
+    });
+
     // Event listeners for Team A
     const teamAInput = document.getElementById('teamAPlayerInput');
     const teamACodeInput = document.getElementById('teamAPlayerCode');
@@ -653,6 +908,23 @@
       const name = teamAInput.value;
       const code = teamACodeInput.value;
       addPlayer('teamA', name, code);
+    });
+
+    // Event listeners for Team B Quick Add
+    const teamBQuickAdd = document.getElementById('teamBQuickAdd');
+    const teamBQuickAddBtn = document.getElementById('teamBQuickAddBtn');
+
+    teamBQuickAdd.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const codes = teamBQuickAdd.value;
+        quickAddPlayers('teamB', codes);
+      }
+    });
+
+    teamBQuickAddBtn.addEventListener('click', () => {
+      const codes = teamBQuickAdd.value;
+      quickAddPlayers('teamB', codes);
     });
 
     // Event listeners for Team B
