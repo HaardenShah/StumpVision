@@ -4,6 +4,8 @@ require_once 'auth.php';
 requireAdmin();
 checkPasswordChangeRequired();
 
+use StumpVision\Common;
+
 $dataDir = __DIR__ . '/../data';
 $message = '';
 $messageType = '';
@@ -29,28 +31,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['csrf_token'])) {
         } elseif ($action === 'verify' && $matchId) {
             $file = $dataDir . '/' . basename($matchId) . '.json';
             if (is_file($file)) {
-                $data = json_decode(file_get_contents($file), true);
-                $data['__verified'] = true;
-                $data['__verified_at'] = time();
-                $data['__verified_by'] = $_SESSION['admin_username'];
-                if (file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT))) {
-                    $message = 'Match verified successfully';
-                    $messageType = 'success';
+                $result = Common::safeJsonRead($file);
+                if ($result['ok'] && is_array($result['data'])) {
+                    $data = $result['data'];
+                    $data['__verified'] = true;
+                    $data['__verified_at'] = time();
+                    $data['__verified_by'] = $_SESSION['admin_username'];
+                    if (Common::safeJsonWrite($file, $data)) {
+                        $message = 'Match verified successfully';
+                        $messageType = 'success';
+                    } else {
+                        $message = 'Failed to verify match';
+                        $messageType = 'error';
+                    }
                 } else {
-                    $message = 'Failed to verify match';
+                    $message = 'Failed to read match data';
                     $messageType = 'error';
                 }
             }
         } elseif ($action === 'unverify' && $matchId) {
             $file = $dataDir . '/' . basename($matchId) . '.json';
             if (is_file($file)) {
-                $data = json_decode(file_get_contents($file), true);
-                unset($data['__verified'], $data['__verified_at'], $data['__verified_by']);
-                if (file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT))) {
-                    $message = 'Match unverified successfully';
-                    $messageType = 'success';
+                $result = Common::safeJsonRead($file);
+                if ($result['ok'] && is_array($result['data'])) {
+                    $data = $result['data'];
+                    unset($data['__verified'], $data['__verified_at'], $data['__verified_by']);
+                    if (Common::safeJsonWrite($file, $data)) {
+                        $message = 'Match unverified successfully';
+                        $messageType = 'success';
+                    } else {
+                        $message = 'Failed to unverify match';
+                        $messageType = 'error';
+                    }
                 } else {
-                    $message = 'Failed to unverify match';
+                    $message = 'Failed to read match data';
                     $messageType = 'error';
                 }
             }
@@ -65,13 +79,13 @@ usort($matchFiles, fn($a, $b) => filemtime($b) <=> filemtime($a));
 
 foreach ($matchFiles as $file) {
     $id = basename($file, '.json');
-    $data = json_decode(file_get_contents($file), true);
-    if ($data) {
+    $result = Common::safeJsonRead($file);
+    if ($result['ok'] && is_array($result['data'])) {
         $matches[] = [
             'id' => $id,
-            'data' => $data,
+            'data' => $result['data'],
             'timestamp' => filemtime($file),
-            'verified' => $data['__verified'] ?? false
+            'verified' => $result['data']['__verified'] ?? false
         ];
     }
 }
@@ -82,10 +96,13 @@ if (isset($_GET['view'])) {
     $viewId = basename($_GET['view']);
     $viewFile = $dataDir . '/' . $viewId . '.json';
     if (is_file($viewFile)) {
-        $viewMatch = [
-            'id' => $viewId,
-            'data' => json_decode(file_get_contents($viewFile), true)
-        ];
+        $result = Common::safeJsonRead($viewFile);
+        if ($result['ok'] && is_array($result['data'])) {
+            $viewMatch = [
+                'id' => $viewId,
+                'data' => $result['data']
+            ];
+        }
     }
 }
 ?>

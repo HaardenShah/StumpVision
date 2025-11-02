@@ -9,7 +9,9 @@ ini_set('session.cookie_samesite', 'Lax');
 // Ensure sessions directory exists
 $sessionPath = sys_get_temp_dir() . '/stumpvision_sessions';
 if (!is_dir($sessionPath)) {
-    @mkdir($sessionPath, 0700, true);
+    if (!mkdir($sessionPath, 0700, true) && !is_dir($sessionPath)) {
+        error_log("Failed to create session directory: $sessionPath");
+    }
 }
 if (is_dir($sessionPath) && is_writable($sessionPath)) {
     session_save_path($sessionPath);
@@ -17,6 +19,9 @@ if (is_dir($sessionPath) && is_writable($sessionPath)) {
 
 session_start();
 require_once __DIR__ . '/config-helper.php';
+require_once __DIR__ . '/../api/lib/Common.php';
+
+use StumpVision\Common;
 
 /**
  * StumpVision Admin Authentication
@@ -27,7 +32,7 @@ require_once __DIR__ . '/config-helper.php';
  */
 function isAdminLoggedIn(): bool
 {
-    return isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
+    return Common::isAdmin();
 }
 
 /**
@@ -99,20 +104,19 @@ function logoutAdmin(): void
 }
 
 /**
- * Generate CSRF token
+ * Generate CSRF token for admin panel
+ * Uses the shared Common library with admin-specific key
  */
 function getAdminCsrfToken(): string
 {
-    if (!isset($_SESSION['admin_csrf_token'])) {
-        $_SESSION['admin_csrf_token'] = bin2hex(random_bytes(32));
-    }
-    return $_SESSION['admin_csrf_token'];
+    return Common::getCsrfToken('admin_csrf_token');
 }
 
 /**
- * Validate CSRF token
+ * Validate CSRF token for admin panel
+ * Uses the shared Common library with admin-specific key
  */
 function validateAdminCsrfToken(string $token): bool
 {
-    return isset($_SESSION['admin_csrf_token']) && hash_equals($_SESSION['admin_csrf_token'], $token);
+    return Common::validateCsrfToken($token, 'admin_csrf_token');
 }

@@ -551,8 +551,8 @@
     }
 
     function viewAllMatches() {
-      // TODO: Implement match history page
-      alert('Match history feature coming soon!');
+      // Navigate to admin panel for match history
+      window.location.href = 'admin/matches.php';
     }
 
     // Load match on page load

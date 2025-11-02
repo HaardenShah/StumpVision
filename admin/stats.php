@@ -4,13 +4,18 @@ require_once 'auth.php';
 requireAdmin();
 checkPasswordChangeRequired();
 
+use StumpVision\Common;
+
 $dataDir = __DIR__ . '/../data';
 $playersFile = $dataDir . '/players.json';
 
 // Load registered players
 $registeredPlayers = [];
 if (is_file($playersFile)) {
-    $registeredPlayers = json_decode(file_get_contents($playersFile), true) ?: [];
+    $result = Common::safeJsonRead($playersFile);
+    if ($result['ok'] && is_array($result['data'])) {
+        $registeredPlayers = $result['data'];
+    }
 }
 
 // Aggregate stats from verified matches
@@ -18,7 +23,11 @@ $playerStats = [];
 
 $matchFiles = glob($dataDir . '/*.json') ?: [];
 foreach ($matchFiles as $file) {
-    $matchData = json_decode(file_get_contents($file), true);
+    $result = Common::safeJsonRead($file);
+    if (!$result['ok'] || !is_array($result['data'])) {
+        continue;
+    }
+    $matchData = $result['data'];
 
     // Only count verified matches
     if (!($matchData['__verified'] ?? false)) {

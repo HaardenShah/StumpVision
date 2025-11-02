@@ -7,16 +7,12 @@ session_start();
  * Match Scheduling API for pre-planning matches
  */
 
-// Check if user is admin
-function isAdmin(): bool
-{
-    return isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
-}
+require_once __DIR__ . '/lib/Common.php';
 
-// Security headers
-header('Content-Type: application/json; charset=utf-8');
-header('X-Content-Type-Options: nosniff');
-header('X-Frame-Options: DENY');
+use StumpVision\Common;
+
+// Send security headers
+Common::sendSecurityHeaders('DENY');
 
 $scheduledMatchesFile = __DIR__ . '/../data/scheduled-matches.json';
 
@@ -26,12 +22,13 @@ $scheduledMatchesFile = __DIR__ . '/../data/scheduled-matches.json';
 function loadScheduledMatches(): array
 {
     global $scheduledMatchesFile;
-    if (!is_file($scheduledMatchesFile)) {
+
+    $result = Common::safeJsonRead($scheduledMatchesFile);
+    if (!$result['ok']) {
         return [];
     }
-    $content = file_get_contents($scheduledMatchesFile);
-    $data = json_decode($content, true);
-    return is_array($data) ? $data : [];
+
+    return is_array($result['data']) ? $result['data'] : [];
 }
 
 /**
@@ -40,11 +37,13 @@ function loadScheduledMatches(): array
 function saveScheduledMatches(array $matches): bool
 {
     global $scheduledMatchesFile;
+
     $dir = dirname($scheduledMatchesFile);
-    if (!is_dir($dir)) {
-        mkdir($dir, 0755, true);
+    if (!Common::ensureDirectory($dir)) {
+        return false;
     }
-    return file_put_contents($scheduledMatchesFile, json_encode($matches, JSON_PRETTY_PRINT)) !== false;
+
+    return Common::safeJsonWrite($scheduledMatchesFile, $matches);
 }
 
 /**
@@ -74,24 +73,20 @@ try {
     if ($action === 'get' && $method === 'GET') {
         $matchId = $_GET['id'] ?? '';
         if (empty($matchId)) {
-            echo json_encode(['ok' => false, 'err' => 'missing_id']);
-            exit;
+            Common::jsonResponse(false, null, 'missing_id');
         }
 
         $matches = loadScheduledMatches();
         if (isset($matches[$matchId])) {
-            echo json_encode(['ok' => true, 'match' => $matches[$matchId]]);
+            Common::jsonResponse(true, ['match' => $matches[$matchId]]);
         } else {
-            echo json_encode(['ok' => false, 'err' => 'not_found']);
+            Common::jsonResponse(false, null, 'not_found');
         }
-        exit;
     }
 
     // Admin-only actions below
-    if (!isAdmin()) {
-        http_response_code(403);
-        echo json_encode(['ok' => false, 'err' => 'unauthorized']);
-        exit;
+    if (!Common::isAdmin()) {
+        Common::jsonResponse(false, null, 'unauthorized', 403);
     }
 
     // LIST: Get all scheduled matches
@@ -104,8 +99,7 @@ try {
             return ($b['scheduled_date'] ?? 0) <=> ($a['scheduled_date'] ?? 0);
         });
 
-        echo json_encode(['ok' => true, 'matches' => $matchesArray]);
-        exit;
+        Common::jsonResponse(true, ['matches' => $matchesArray]);
     }
 
     // CREATE: Create new scheduled match
@@ -114,8 +108,13 @@ try {
         $in = json_decode($raw, true);
 
         if (!is_array($in)) {
-            echo json_encode(['ok' => false, 'err' => 'invalid_input']);
-            exit;
+            Common::jsonResponse(false, null, 'invalid_input');
+        }
+
+        // Validate CSRF token
+        $token = $in['csrf_token'] ?? '';
+        if (!Common::validateCsrfToken($token, 'admin_csrf_token')) {
+            Common::jsonResponse(false, null, 'invalid_csrf_token', 403);
         }
 
         $matches = loadScheduledMatches();
@@ -143,11 +142,10 @@ try {
         ];
 
         if (saveScheduledMatches($matches)) {
-            echo json_encode(['ok' => true, 'match' => $matches[$matchId]]);
+            Common::jsonResponse(true, ['match' => $matches[$matchId]]);
         } else {
-            echo json_encode(['ok' => false, 'err' => 'save_failed']);
+            Common::jsonResponse(false, null, 'save_failed');
         }
-        exit;
     }
 
     // UPDATE: Update match details
@@ -156,16 +154,20 @@ try {
         $in = json_decode($raw, true);
 
         if (!is_array($in) || empty($in['id'])) {
-            echo json_encode(['ok' => false, 'err' => 'invalid_input']);
-            exit;
+            Common::jsonResponse(false, null, 'invalid_input');
+        }
+
+        // Validate CSRF token
+        $token = $in['csrf_token'] ?? '';
+        if (!Common::validateCsrfToken($token, 'admin_csrf_token')) {
+            Common::jsonResponse(false, null, 'invalid_csrf_token', 403);
         }
 
         $matches = loadScheduledMatches();
         $matchId = $in['id'];
 
         if (!isset($matches[$matchId])) {
-            echo json_encode(['ok' => false, 'err' => 'not_found']);
-            exit;
+            Common::jsonResponse(false, null, 'not_found');
         }
 
         // Update allowed fields
@@ -185,11 +187,10 @@ try {
         $matches[$matchId]['updated_at'] = time();
 
         if (saveScheduledMatches($matches)) {
-            echo json_encode(['ok' => true, 'match' => $matches[$matchId]]);
+            Common::jsonResponse(true, ['match' => $matches[$matchId]]);
         } else {
-            echo json_encode(['ok' => false, 'err' => 'save_failed']);
+            Common::jsonResponse(false, null, 'save_failed');
         }
-        exit;
     }
 
     // DELETE: Remove match
@@ -198,34 +199,35 @@ try {
         $in = json_decode($raw, true);
 
         if (!is_array($in) || empty($in['id'])) {
-            echo json_encode(['ok' => false, 'err' => 'invalid_input']);
-            exit;
+            Common::jsonResponse(false, null, 'invalid_input');
+        }
+
+        // Validate CSRF token
+        $token = $in['csrf_token'] ?? '';
+        if (!Common::validateCsrfToken($token, 'admin_csrf_token')) {
+            Common::jsonResponse(false, null, 'invalid_csrf_token', 403);
         }
 
         $matches = loadScheduledMatches();
         $matchId = $in['id'];
 
         if (!isset($matches[$matchId])) {
-            echo json_encode(['ok' => false, 'err' => 'not_found']);
-            exit;
+            Common::jsonResponse(false, null, 'not_found');
         }
 
         unset($matches[$matchId]);
 
         if (saveScheduledMatches($matches)) {
-            echo json_encode(['ok' => true]);
+            Common::jsonResponse(true);
         } else {
-            echo json_encode(['ok' => false, 'err' => 'save_failed']);
+            Common::jsonResponse(false, null, 'save_failed');
         }
-        exit;
     }
 
     // Unknown action
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'err' => 'bad_action']);
+    Common::jsonResponse(false, null, 'bad_action', 400);
 
 } catch (\Throwable $e) {
     error_log('StumpVision Scheduled Matches API Error: ' . $e->getMessage());
-    http_response_code(500);
-    echo json_encode(['ok' => false, 'err' => 'server_error']);
+    Common::jsonResponse(false, null, 'server_error', 500);
 }
