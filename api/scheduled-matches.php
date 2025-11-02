@@ -124,6 +124,7 @@ try {
         $matches[$matchId] = [
             'id' => $matchId,
             'scheduled_date' => $in['scheduled_date'] ?? date('Y-m-d'),
+            'scheduled_time' => $in['scheduled_time'] ?? '10:00',
             'match_name' => trim($in['match_name'] ?? ''),
             'players' => $in['players'] ?? [],
             'teamA' => $in['teamA'] ?? ['name' => 'Team A', 'players' => []],
@@ -169,7 +170,7 @@ try {
 
         // Update allowed fields
         $updateFields = [
-            'scheduled_date', 'match_name', 'players',
+            'scheduled_date', 'scheduled_time', 'match_name', 'players',
             'teamA', 'teamB', 'matchFormat', 'oversPerInnings', 'wicketsLimit',
             'tossWinner', 'tossDecision', 'openingBat1', 'openingBat2', 'openingBowler',
             'status'
