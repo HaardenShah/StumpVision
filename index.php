@@ -2174,7 +2174,8 @@
             title: `${matchState.setup.teamA.name} vs ${matchState.setup.teamB.name}`,
             oversPerSide: matchState.setup.oversPerInnings,
             ballsPerOver: 6,
-            wicketsLimit: matchState.setup.wicketsLimit
+            wicketsLimit: matchState.setup.wicketsLimit,
+            scheduled_match_id: matchState.setup.loadedMatchId || null
           },
           teams: [
             { name: matchState.setup.teamA.name, players: matchState.setup.teamA.players },
@@ -2479,7 +2480,10 @@
         const response = await fetch('api/live.php?action=create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ match_id: matchState.saveId })
+          body: JSON.stringify({
+            match_id: matchState.saveId,
+            scheduled_match_id: matchState.setup.loadedMatchId || null
+          })
         });
 
         const result = await response.json();
