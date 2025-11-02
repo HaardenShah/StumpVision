@@ -9,40 +9,23 @@ session_start();
 
 // Load configuration
 require_once __DIR__ . '/../admin/config-helper.php';
+require_once __DIR__ . '/lib/Common.php';
 
-// Security headers
-header('Content-Type: application/json; charset=utf-8');
-header('X-Content-Type-Options: nosniff');
-header('X-Frame-Options: SAMEORIGIN');
-header('X-XSS-Protection: 1; mode=block');
+use StumpVision\Common;
+
+// Send security headers (SAMEORIGIN to allow embedding in iframes for live view)
+Common::sendSecurityHeaders('SAMEORIGIN');
 
 // Check if live score sharing is enabled via admin settings
 if (!Config::isLiveScoreEnabled()) {
-    http_response_code(403);
-    echo json_encode(['ok' => false, 'err' => 'live_score_disabled']);
-    exit;
+    Common::jsonResponse(false, null, 'live_score_disabled', 403);
 }
 
 $dataDir = __DIR__ . '/../data/live';
 
 // Ensure live data directory exists
-if (!is_dir($dataDir)) {
-    if (!@mkdir($dataDir, 0755, true)) {
-        http_response_code(500);
-        echo json_encode(['ok' => false, 'err' => 'Cannot create live data directory']);
-        exit;
-    }
-}
-
-/**
- * Sanitize live match ID
- */
-function safe_live_id(string $id): string
-{
-    $id = basename($id);
-    $id = str_replace(['..', '/', '\\'], '', $id);
-    $id = preg_replace('/[^a-zA-Z0-9_-]/', '', $id);
-    return substr($id, 0, 64);
+if (!Common::ensureDirectory($dataDir)) {
+    Common::jsonResponse(false, null, 'Cannot create live data directory', 500);
 }
 
 /**
@@ -51,41 +34,12 @@ function safe_live_id(string $id): string
 function live_path_for(string $id): string
 {
     global $dataDir;
-    return $dataDir . DIRECTORY_SEPARATOR . safe_live_id($id) . '.json';
+    return $dataDir . DIRECTORY_SEPARATOR . Common::sanitizeId($id) . '.json';
 }
 
-/**
- * Simple rate limiting
- */
-function check_live_rate_limit(): bool
-{
-    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-    $key = 'live_rate_limit_' . md5($ip);
-
-    if (!isset($_SESSION[$key])) {
-        $_SESSION[$key] = ['count' => 0, 'reset' => time() + 60];
-    }
-
-    $data = $_SESSION[$key];
-
-    if (time() >= $data['reset']) {
-        $_SESSION[$key] = ['count' => 1, 'reset' => time() + 60];
-        return true;
-    }
-
-    if ($data['count'] >= 120) {
-        return false;
-    }
-
-    $_SESSION[$key]['count']++;
-    return true;
-}
-
-// Check rate limit
-if (!check_live_rate_limit()) {
-    http_response_code(429);
-    echo json_encode(['ok' => false, 'err' => 'rate_limit_exceeded']);
-    exit;
+// Check rate limit (120 requests per minute for live updates - higher than normal API)
+if (!Common::checkRateLimit(120, 'live_rate_limit')) {
+    Common::jsonResponse(false, null, 'rate_limit_exceeded', 429);
 }
 
 $action = $_GET['action'] ?? '';
@@ -97,15 +51,13 @@ try {
         $raw = file_get_contents('php://input');
 
         if ($raw === false || empty($raw)) {
-            echo json_encode(['ok' => false, 'err' => 'empty_request']);
-            exit;
+            Common::jsonResponse(false, null, 'empty_request');
         }
 
         $in = json_decode($raw, true);
 
         if (!is_array($in) || !isset($in['match_id'])) {
-            echo json_encode(['ok' => false, 'err' => 'bad_payload']);
-            exit;
+            Common::jsonResponse(false, null, 'bad_payload');
         }
 
         // Generate unique live ID
@@ -123,13 +75,11 @@ try {
         ];
 
         $f = live_path_for($liveId);
-        if (file_put_contents($f, json_encode($liveSession, JSON_PRETTY_PRINT)) === false) {
-            echo json_encode(['ok' => false, 'err' => 'write_error']);
-            exit;
+        if (!Common::safeJsonWrite($f, $liveSession)) {
+            Common::jsonResponse(false, null, 'write_error');
         }
 
-        echo json_encode(['ok' => true, 'live_id' => $liveId]);
-        exit;
+        Common::jsonResponse(true, ['live_id' => $liveId]);
     }
 
     // UPDATE: Push live score update
@@ -137,45 +87,42 @@ try {
         $raw = file_get_contents('php://input');
 
         if ($raw === false || empty($raw)) {
-            echo json_encode(['ok' => false, 'err' => 'empty_request']);
-            exit;
+            Common::jsonResponse(false, null, 'empty_request');
         }
 
         $in = json_decode($raw, true);
 
         if (!is_array($in) || !isset($in['live_id']) || !isset($in['state'])) {
-            echo json_encode(['ok' => false, 'err' => 'bad_payload']);
-            exit;
+            Common::jsonResponse(false, null, 'bad_payload');
         }
 
-        $liveId = safe_live_id($in['live_id']);
+        $liveId = Common::sanitizeId($in['live_id']);
         $f = live_path_for($liveId);
 
-        if (!is_file($f)) {
-            echo json_encode(['ok' => false, 'err' => 'not_found']);
-            exit;
+        $result = Common::safeJsonRead($f);
+        if (!$result['ok']) {
+            Common::jsonResponse(false, null, $result['error']);
         }
 
-        $session = json_decode(file_get_contents($f), true);
+        $session = $result['data'];
+        if (!is_array($session)) {
+            Common::jsonResponse(false, null, 'invalid_session');
+        }
 
         // Verify ownership
         if ($session['owner_session'] !== session_id()) {
-            http_response_code(403);
-            echo json_encode(['ok' => false, 'err' => 'unauthorized']);
-            exit;
+            Common::jsonResponse(false, null, 'unauthorized', 403);
         }
 
         // Update state
         $session['current_state'] = $in['state'];
         $session['last_updated'] = time();
 
-        if (file_put_contents($f, json_encode($session, JSON_PRETTY_PRINT)) === false) {
-            echo json_encode(['ok' => false, 'err' => 'write_error']);
-            exit;
+        if (!Common::safeJsonWrite($f, $session)) {
+            Common::jsonResponse(false, null, 'write_error');
         }
 
-        echo json_encode(['ok' => true]);
-        exit;
+        Common::jsonResponse(true);
     }
 
     // GET: Retrieve current live score
@@ -183,32 +130,31 @@ try {
         $liveId = $_GET['live_id'] ?? '';
 
         if (empty($liveId)) {
-            echo json_encode(['ok' => false, 'err' => 'missing_id']);
-            exit;
+            Common::jsonResponse(false, null, 'missing_id');
         }
 
-        $safeId = safe_live_id($liveId);
+        $safeId = Common::sanitizeId($liveId);
         $f = live_path_for($safeId);
 
-        if (!is_file($f)) {
-            echo json_encode(['ok' => false, 'err' => 'not_found']);
-            exit;
+        $result = Common::safeJsonRead($f);
+        if (!$result['ok']) {
+            Common::jsonResponse(false, null, $result['error']);
         }
 
-        $session = json_decode(file_get_contents($f), true);
+        $session = $result['data'];
+        if (!is_array($session)) {
+            Common::jsonResponse(false, null, 'invalid_session');
+        }
 
         if (!$session['active']) {
-            echo json_encode(['ok' => false, 'err' => 'session_inactive']);
-            exit;
+            Common::jsonResponse(false, null, 'session_inactive');
         }
 
         // Return current state
-        echo json_encode([
-            'ok' => true,
+        Common::jsonResponse(true, [
             'state' => $session['current_state'] ?? null,
             'last_updated' => $session['last_updated'] ?? $session['created_at']
         ]);
-        exit;
     }
 
     // STOP: Deactivate live sharing
@@ -217,40 +163,37 @@ try {
         $in = json_decode($raw, true);
 
         if (!is_array($in) || !isset($in['live_id'])) {
-            echo json_encode(['ok' => false, 'err' => 'bad_payload']);
-            exit;
+            Common::jsonResponse(false, null, 'bad_payload');
         }
 
-        $liveId = safe_live_id($in['live_id']);
+        $liveId = Common::sanitizeId($in['live_id']);
         $f = live_path_for($liveId);
 
-        if (!is_file($f)) {
-            echo json_encode(['ok' => false, 'err' => 'not_found']);
-            exit;
+        $result = Common::safeJsonRead($f);
+        if (!$result['ok']) {
+            Common::jsonResponse(false, null, $result['error']);
         }
 
-        $session = json_decode(file_get_contents($f), true);
+        $session = $result['data'];
+        if (!is_array($session)) {
+            Common::jsonResponse(false, null, 'invalid_session');
+        }
 
         // Verify ownership
         if ($session['owner_session'] !== session_id()) {
-            http_response_code(403);
-            echo json_encode(['ok' => false, 'err' => 'unauthorized']);
-            exit;
+            Common::jsonResponse(false, null, 'unauthorized', 403);
         }
 
         $session['active'] = false;
-        file_put_contents($f, json_encode($session, JSON_PRETTY_PRINT));
+        Common::safeJsonWrite($f, $session);
 
-        echo json_encode(['ok' => true]);
-        exit;
+        Common::jsonResponse(true);
     }
 
     // Unknown action
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'err' => 'bad_action']);
+    Common::jsonResponse(false, null, 'bad_action', 400);
 
 } catch (\Throwable $e) {
     error_log('StumpVision Live API Error: ' . $e->getMessage());
-    http_response_code(500);
-    echo json_encode(['ok' => false, 'err' => 'server_error']);
+    Common::jsonResponse(false, null, 'server_error', 500);
 }

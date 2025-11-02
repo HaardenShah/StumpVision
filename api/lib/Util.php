@@ -8,6 +8,8 @@ declare(strict_types=1);
 
 namespace StumpVision;
 
+require_once __DIR__ . '/Common.php';
+
 final class Util
 {
     /**
@@ -49,7 +51,7 @@ final class Util
         }
 
         // Try using 'which' command (Unix/Linux)
-        $output = @shell_exec("which " . escapeshellarg($command) . " 2>/dev/null");
+        $output = shell_exec("which " . escapeshellarg($command) . " 2>/dev/null");
         if ($output && trim($output)) {
             $path = trim($output);
             if (is_executable($path)) {
@@ -85,18 +87,14 @@ final class Util
         $apiLibDir = __DIR__;
         $apiDir = dirname($apiLibDir);
         $rootDir = dirname($apiDir);
-        
+
         $dataDir = $rootDir . DIRECTORY_SEPARATOR . 'data';
         $cardsDir = $dataDir . DIRECTORY_SEPARATOR . 'cards';
-        
-        // Create directories if they don't exist
-        if (!is_dir($dataDir)) {
-            @mkdir($dataDir, 0755, true);
-        }
-        if (!is_dir($cardsDir)) {
-            @mkdir($cardsDir, 0755, true);
-        }
-        
+
+        // Create directories if they don't exist (using Common helper)
+        Common::ensureDirectory($dataDir);
+        Common::ensureDirectory($cardsDir);
+
         return [$rootDir, $dataDir, $cardsDir];
     }
 }

@@ -7,16 +7,12 @@ session_start();
  * Player Registry API
  */
 
-// Check if user is admin
-function isAdmin(): bool
-{
-    return isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
-}
+require_once __DIR__ . '/lib/Common.php';
 
-// Security headers
-header('Content-Type: application/json; charset=utf-8');
-header('X-Content-Type-Options: nosniff');
-header('X-Frame-Options: DENY');
+use StumpVision\Common;
+
+// Send security headers
+Common::sendSecurityHeaders('DENY');
 
 $playersFile = __DIR__ . '/../data/players.json';
 
@@ -26,12 +22,13 @@ $playersFile = __DIR__ . '/../data/players.json';
 function loadPlayers(): array
 {
     global $playersFile;
-    if (!is_file($playersFile)) {
+
+    $result = Common::safeJsonRead($playersFile);
+    if (!$result['ok']) {
         return [];
     }
-    $content = file_get_contents($playersFile);
-    $data = json_decode($content, true);
-    return is_array($data) ? $data : [];
+
+    return is_array($result['data']) ? $result['data'] : [];
 }
 
 /**
@@ -40,11 +37,13 @@ function loadPlayers(): array
 function savePlayers(array $players): bool
 {
     global $playersFile;
+
     $dir = dirname($playersFile);
-    if (!is_dir($dir)) {
-        mkdir($dir, 0755, true);
+    if (!Common::ensureDirectory($dir)) {
+        return false;
     }
-    return file_put_contents($playersFile, json_encode($players, JSON_PRETTY_PRINT)) !== false;
+
+    return Common::safeJsonWrite($playersFile, $players);
 }
 
 /**
@@ -107,18 +106,6 @@ function generateUUID(): string
     return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
 }
 
-/**
- * Verify player code matches player ID
- */
-function verifyPlayerCode(string $playerId, string $code): bool
-{
-    $players = loadPlayers();
-    if (!isset($players[$playerId])) {
-        return false;
-    }
-    return ($players[$playerId]['code'] ?? '') === strtoupper(trim($code));
-}
-
 $action = $_GET['action'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
@@ -126,25 +113,22 @@ try {
     // LIST: Get all registered players (public)
     if ($action === 'list' && $method === 'GET') {
         $players = loadPlayers();
-        echo json_encode(['ok' => true, 'players' => array_values($players)]);
-        exit;
+        Common::jsonResponse(true, ['players' => array_values($players)]);
     }
 
     // GET: Get specific player (public)
     if ($action === 'get' && $method === 'GET') {
         $playerId = $_GET['id'] ?? '';
         if (empty($playerId)) {
-            echo json_encode(['ok' => false, 'err' => 'missing_id']);
-            exit;
+            Common::jsonResponse(false, null, 'missing_id');
         }
 
         $players = loadPlayers();
         if (isset($players[$playerId])) {
-            echo json_encode(['ok' => true, 'player' => $players[$playerId]]);
+            Common::jsonResponse(true, ['player' => $players[$playerId]]);
         } else {
-            echo json_encode(['ok' => false, 'err' => 'not_found']);
+            Common::jsonResponse(false, null, 'not_found');
         }
-        exit;
     }
 
     // VERIFY: Verify player code (public)
@@ -154,33 +138,24 @@ try {
         $in = json_decode($raw, true);
 
         if (!is_array($in) || empty($in['code'])) {
-            echo json_encode(['ok' => false, 'err' => 'invalid_input']);
-            exit;
+            Common::jsonResponse(false, null, 'invalid_input');
         }
 
         $players = loadPlayers();
         $code = strtoupper(trim($in['code']));
-        $name = isset($in['name']) ? trim($in['name']) : '';
-
-        // Debug logging - remove after testing
-        error_log("Player verification attempt - Code: {$code}, Name: {$name}");
-        error_log("Total players in DB: " . count($players));
 
         // Find player by code
         $found = null;
         foreach ($players as $player) {
-            error_log("Checking player code: " . ($player['code'] ?? 'NO_CODE') . " against: {$code}");
             if (($player['code'] ?? '') === $code) {
                 $found = $player;
-                error_log("Match found for code: {$code}");
                 break;
             }
         }
 
         if ($found) {
             // Return player info for verification
-            echo json_encode([
-                'ok' => true,
+            Common::jsonResponse(true, [
                 'verified' => true,
                 'player' => [
                     'id' => $found['id'],
@@ -190,18 +165,15 @@ try {
                 ]
             ]);
         } else {
-            error_log("No match found for code: {$code}");
-            echo json_encode(['ok' => true, 'verified' => false]);
+            Common::jsonResponse(true, ['verified' => false]);
         }
-        exit;
     }
 
     // SEARCH: Search players by name (public)
     if ($action === 'search' && $method === 'GET') {
         $query = strtolower(trim($_GET['q'] ?? ''));
         if (empty($query)) {
-            echo json_encode(['ok' => true, 'players' => []]);
-            exit;
+            Common::jsonResponse(true, ['players' => []]);
         }
 
         $players = loadPlayers();
@@ -220,15 +192,12 @@ try {
             }
         }
 
-        echo json_encode(['ok' => true, 'players' => $results]);
-        exit;
+        Common::jsonResponse(true, ['players' => $results]);
     }
 
     // Admin-only actions below
-    if (!isAdmin()) {
-        http_response_code(403);
-        echo json_encode(['ok' => false, 'err' => 'unauthorized']);
-        exit;
+    if (!Common::isAdmin()) {
+        Common::jsonResponse(false, null, 'unauthorized', 403);
     }
 
     // ADD: Register new player
@@ -237,8 +206,13 @@ try {
         $in = json_decode($raw, true);
 
         if (!is_array($in) || empty($in['name'])) {
-            echo json_encode(['ok' => false, 'err' => 'invalid_input']);
-            exit;
+            Common::jsonResponse(false, null, 'invalid_input');
+        }
+
+        // Validate CSRF token
+        $token = $in['csrf_token'] ?? '';
+        if (!Common::validateCsrfToken($token, 'admin_csrf_token')) {
+            Common::jsonResponse(false, null, 'invalid_csrf_token', 403);
         }
 
         $players = loadPlayers();
@@ -257,8 +231,7 @@ try {
         }
 
         if ($nameExists) {
-            echo json_encode(['ok' => false, 'err' => 'player_name_exists']);
-            exit;
+            Common::jsonResponse(false, null, 'player_name_exists');
         }
 
         // Generate unique player code
@@ -275,11 +248,10 @@ try {
         ];
 
         if (savePlayers($players)) {
-            echo json_encode(['ok' => true, 'player' => $players[$playerId]]);
+            Common::jsonResponse(true, ['player' => $players[$playerId]]);
         } else {
-            echo json_encode(['ok' => false, 'err' => 'save_failed']);
+            Common::jsonResponse(false, null, 'save_failed');
         }
-        exit;
     }
 
     // UPDATE: Update player info
@@ -288,16 +260,20 @@ try {
         $in = json_decode($raw, true);
 
         if (!is_array($in) || empty($in['id'])) {
-            echo json_encode(['ok' => false, 'err' => 'invalid_input']);
-            exit;
+            Common::jsonResponse(false, null, 'invalid_input');
+        }
+
+        // Validate CSRF token
+        $token = $in['csrf_token'] ?? '';
+        if (!Common::validateCsrfToken($token, 'admin_csrf_token')) {
+            Common::jsonResponse(false, null, 'invalid_csrf_token', 403);
         }
 
         $players = loadPlayers();
         $playerId = $in['id'];
 
         if (!isset($players[$playerId])) {
-            echo json_encode(['ok' => false, 'err' => 'not_found']);
-            exit;
+            Common::jsonResponse(false, null, 'not_found');
         }
 
         if (isset($in['name'])) $players[$playerId]['name'] = trim($in['name']);
@@ -306,11 +282,10 @@ try {
         $players[$playerId]['updated_at'] = time();
 
         if (savePlayers($players)) {
-            echo json_encode(['ok' => true, 'player' => $players[$playerId]]);
+            Common::jsonResponse(true, ['player' => $players[$playerId]]);
         } else {
-            echo json_encode(['ok' => false, 'err' => 'save_failed']);
+            Common::jsonResponse(false, null, 'save_failed');
         }
-        exit;
     }
 
     // DELETE: Remove player
@@ -319,34 +294,35 @@ try {
         $in = json_decode($raw, true);
 
         if (!is_array($in) || empty($in['id'])) {
-            echo json_encode(['ok' => false, 'err' => 'invalid_input']);
-            exit;
+            Common::jsonResponse(false, null, 'invalid_input');
+        }
+
+        // Validate CSRF token
+        $token = $in['csrf_token'] ?? '';
+        if (!Common::validateCsrfToken($token, 'admin_csrf_token')) {
+            Common::jsonResponse(false, null, 'invalid_csrf_token', 403);
         }
 
         $players = loadPlayers();
         $playerId = $in['id'];
 
         if (!isset($players[$playerId])) {
-            echo json_encode(['ok' => false, 'err' => 'not_found']);
-            exit;
+            Common::jsonResponse(false, null, 'not_found');
         }
 
         unset($players[$playerId]);
 
         if (savePlayers($players)) {
-            echo json_encode(['ok' => true]);
+            Common::jsonResponse(true);
         } else {
-            echo json_encode(['ok' => false, 'err' => 'save_failed']);
+            Common::jsonResponse(false, null, 'save_failed');
         }
-        exit;
     }
 
     // Unknown action
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'err' => 'bad_action']);
+    Common::jsonResponse(false, null, 'bad_action', 400);
 
 } catch (\Throwable $e) {
     error_log('StumpVision Players API Error: ' . $e->getMessage());
-    http_response_code(500);
-    echo json_encode(['ok' => false, 'err' => 'server_error']);
+    Common::jsonResponse(false, null, 'server_error', 500);
 }
