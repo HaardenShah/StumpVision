@@ -1,12 +1,12 @@
 <?php
 declare(strict_types=1);
-session_start();
 
 /**
  * StumpVision — api/scheduled-matches.php
  * Match Scheduling API for pre-planning matches (Database version)
  */
 
+require_once __DIR__ . '/lib/SessionConfig.php';
 require_once __DIR__ . '/lib/Common.php';
 require_once __DIR__ . '/lib/Database.php';
 require_once __DIR__ . '/lib/repositories/ScheduledMatchRepository.php';
