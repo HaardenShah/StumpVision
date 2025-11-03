@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/../api/lib/Common.php';
+use StumpVision\Common;
+
 /**
  * Configuration Helper
  * Manages app settings stored in data/config.json
@@ -109,6 +112,7 @@ class Config
 
     /**
      * Save config to file with secure permissions
+     * Uses safe file write with flock() to prevent race conditions
      */
     private static function saveConfig(array $config): bool
     {
@@ -117,15 +121,15 @@ class Config
             return false;
         }
 
-        $result = file_put_contents(self::$configFile, $json);
-        if ($result !== false) {
-            // Ensure file has restrictive permissions (600 = only owner can read/write)
-            chmod(self::$configFile, 0600);
-            self::$cache = $config; // Update cache
-            return true;
+        // Use Common::safeFileWrite for atomic write with file locking
+        if (!Common::safeFileWrite(self::$configFile, $json)) {
+            return false;
         }
 
-        return false;
+        // Ensure file has restrictive permissions (600 = only owner can read/write)
+        chmod(self::$configFile, 0600);
+        self::$cache = $config; // Update cache
+        return true;
     }
 
     /**

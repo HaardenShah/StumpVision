@@ -101,10 +101,24 @@ Perfect for pickup cricket, club matches, and growing your cricket community! �
 
 ### Requirements
 - **PHP 7.4+** (8.x recommended)
+- **SQLite 3** - Standard in PHP 7.4+
+- **PDO SQLite** - Standard in PHP 7.4+
 - **Proper file ownership** - `/data/` directory owned by web server user
 - **Write permissions** - 755 on directories (owner can write, others read-only)
 - **Session support** - For admin panel authentication
-- **JSON support** - Standard in PHP 7.4+
+
+### Database Migration (Upgrading from v2.2 or earlier)
+
+If you're upgrading from an earlier version that used JSON file storage, you'll need to migrate to the SQLite database:
+
+1. **Check requirements**: Visit `/migrations/check_requirements.php` to verify your PHP setup
+2. **Run migration**: Visit `/migrations/migrate.php` to create the database schema
+3. **Import data**: Visit `/migrations/import_from_files.php` to import existing matches and players
+4. **Verify**: Check the admin panel to ensure all data was migrated correctly
+
+See `/migrations/README.md` for detailed migration instructions.
+
+**Note**: New installations automatically use SQLite - no migration needed!
 
 ---
 
@@ -227,11 +241,13 @@ Perfect for pickup cricket, club matches, and growing your cricket community! �
 
 ### Stack
 - **Frontend**: Vanilla JavaScript (ES6+), HTML5, CSS3
-- **Backend**: PHP 7.4+ with flat-file JSON storage
-- **Storage**: localStorage (client) + `/data/*.json` (server)
-- **Authentication**: PHP sessions for admin panel
+- **Backend**: PHP 7.4+ with SQLite database
+- **Database**: SQLite 3 with WAL mode, PDO prepared statements
+- **Storage**: localStorage (client) + SQLite database (server)
+- **Authentication**: PHP sessions for admin panel with bcrypt password hashing
 - **Live Updates**: AJAX polling (5-second intervals)
 - **Offline**: Service Worker + Cache API
+- **Architecture**: Repository pattern with data access layer
 - **Security**: Shared utility library with CSRF, rate limiting, file locking (v2.3)
 - **Concurrency**: File locking via `flock()` for safe concurrent writes (v2.3)
 
@@ -242,6 +258,7 @@ Core App:
 ├── setup.php          - Match configuration page
 ├── live.php           - Live score viewer for spectators
 ├── summary.php        - Match summary/recap page
+├── scheduled.php      - View scheduled matches
 
 Admin Panel:
 ├── admin/
@@ -251,7 +268,10 @@ Admin Panel:
 │   ├── players.php       - Player database & statistics
 │   ├── live-sessions.php - Active live session monitoring
 │   ├── settings.php      - System configuration
+│   ├── stats.php         - Statistics dashboard
+│   ├── schedule-match.php - Match scheduling interface
 │   ├── auth.php          - Authentication logic
+│   ├── config-helper.php - Configuration management
 │   └── header.php        - Shared admin navigation
 
 Backend API:
@@ -263,9 +283,23 @@ Backend API:
 │   ├── renderCard.php - Share card generation (if available)
 │   └── lib/
 │       ├── Common.php     - Shared utility library (NEW in v2.3)
+│       ├── Database.php   - SQLite PDO wrapper with connection management
 │       ├── Util.php       - Render pipeline helpers
 │       ├── CardRenderer.php - Image card generation
-│       └── VideoBuilder.php - Video export (optional)
+│       ├── VideoBuilder.php - Video export (optional)
+│       └── repositories/  - Data access layer (Repository pattern)
+│           ├── MatchRepository.php
+│           ├── PlayerRepository.php
+│           ├── LiveSessionRepository.php
+│           └── ScheduledMatchRepository.php
+
+Database Migrations:
+├── migrations/
+│   ├── migrate.php              - Schema migration runner
+│   ├── import_from_files.php    - Data import from legacy JSON
+│   ├── check_requirements.php   - System requirements validator
+│   ├── 001_initial_schema.sql   - Complete SQLite schema
+│   └── README.md                - Migration documentation
 
 PWA:
 ├── manifest.webmanifest - App metadata for installation
@@ -277,8 +311,12 @@ Assets:
 
 Data Storage:
 ├── data/
-│   ├── *.json         - Saved match files (auto-generated)
-│   └── live/          - Live session state files
+│   ├── stumpvision.db     - SQLite database (auto-generated)
+│   ├── stumpvision.db-wal - SQLite WAL file
+│   ├── stumpvision.db-shm - SQLite shared memory
+│   ├── *.json             - Legacy match files (pre-migration)
+│   ├── live/              - Live session state files
+│   └── .gitignore         - Prevents committing database
 
 Configuration (Secure):
 ├── config/
