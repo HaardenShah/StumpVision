@@ -600,6 +600,7 @@ $csrfToken = getAdminCsrfToken();
                 const response = await fetch('/api/scheduled-matches.php?action=create', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
                     body: JSON.stringify(payload)
                 });
 
@@ -636,7 +637,9 @@ $csrfToken = getAdminCsrfToken();
         // Load scheduled matches
         async function loadScheduledMatches() {
             try {
-                const response = await fetch('/api/scheduled-matches.php?action=list');
+                const response = await fetch('/api/scheduled-matches.php?action=list', {
+                    credentials: 'same-origin'
+                });
                 const result = await response.json();
 
                 if (result.ok && result.matches) {
@@ -697,6 +700,7 @@ $csrfToken = getAdminCsrfToken();
                 const response = await fetch('/api/scheduled-matches.php?action=delete', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
                     body: JSON.stringify({ csrf_token: csrfToken, id: matchId })
                 });
 
