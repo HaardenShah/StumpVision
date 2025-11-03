@@ -4,59 +4,32 @@ session_start();
 
 /**
  * StumpVision — api/scheduled-matches.php
- * Match Scheduling API for pre-planning matches
+ * Match Scheduling API for pre-planning matches (Database version)
  */
 
 require_once __DIR__ . '/lib/Common.php';
+require_once __DIR__ . '/lib/Database.php';
+require_once __DIR__ . '/lib/repositories/ScheduledMatchRepository.php';
 
 use StumpVision\Common;
+use StumpVision\Repositories\ScheduledMatchRepository;
 
 // Send security headers
 Common::sendSecurityHeaders('DENY');
 
-$scheduledMatchesFile = __DIR__ . '/../data/scheduled-matches.json';
-
-/**
- * Load scheduled matches from file
- */
-function loadScheduledMatches(): array
-{
-    global $scheduledMatchesFile;
-
-    $result = Common::safeJsonRead($scheduledMatchesFile);
-    if (!$result['ok']) {
-        return [];
-    }
-
-    return is_array($result['data']) ? $result['data'] : [];
-}
-
-/**
- * Save scheduled matches to file
- */
-function saveScheduledMatches(array $matches): bool
-{
-    global $scheduledMatchesFile;
-
-    $dir = dirname($scheduledMatchesFile);
-    if (!Common::ensureDirectory($dir)) {
-        return false;
-    }
-
-    return Common::safeJsonWrite($scheduledMatchesFile, $matches);
-}
+$repo = new ScheduledMatchRepository();
 
 /**
  * Generate a unique short match ID
  * Format: 6-digit number (e.g., "123456")
  */
-function generateMatchId(array $existingMatches): string
+function generateMatchId(ScheduledMatchRepository $repo): string
 {
     $maxAttempts = 100;
     for ($i = 0; $i < $maxAttempts; $i++) {
         $id = str_pad((string)random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
 
-        if (!isset($existingMatches[$id])) {
+        if (!$repo->exists($id)) {
             return $id;
         }
     }
@@ -76,9 +49,9 @@ try {
             Common::jsonResponse(false, null, 'missing_id');
         }
 
-        $matches = loadScheduledMatches();
-        if (isset($matches[$matchId])) {
-            Common::jsonResponse(true, ['match' => $matches[$matchId]]);
+        $match = $repo->findById($matchId);
+        if ($match) {
+            Common::jsonResponse(true, ['match' => $match]);
         } else {
             Common::jsonResponse(false, null, 'not_found');
         }
@@ -91,15 +64,14 @@ try {
 
     // LIST: Get all scheduled matches
     if ($action === 'list' && $method === 'GET') {
-        $matches = loadScheduledMatches();
+        $matches = $repo->findAll();
 
-        // Convert to array and sort by date (newest first)
-        $matchesArray = array_values($matches);
-        usort($matchesArray, function($a, $b) {
+        // Sort by date (newest first)
+        usort($matches, function($a, $b) {
             return ($b['scheduled_date'] ?? 0) <=> ($a['scheduled_date'] ?? 0);
         });
 
-        Common::jsonResponse(true, ['matches' => $matchesArray]);
+        Common::jsonResponse(true, ['matches' => $matches]);
     }
 
     // CREATE: Create new scheduled match
@@ -117,11 +89,9 @@ try {
             Common::jsonResponse(false, null, 'invalid_csrf_token', 403);
         }
 
-        $matches = loadScheduledMatches();
-        $matchId = generateMatchId($matches);
+        $matchId = generateMatchId($repo);
 
-        $matches[$matchId] = [
-            'id' => $matchId,
+        $matchData = [
             'scheduled_date' => $in['scheduled_date'] ?? date('Y-m-d'),
             'scheduled_time' => $in['scheduled_time'] ?? '10:00',
             'match_name' => trim($in['match_name'] ?? ''),
@@ -136,13 +106,14 @@ try {
             'openingBat1' => $in['openingBat1'] ?? null,
             'openingBat2' => $in['openingBat2'] ?? null,
             'openingBowler' => $in['openingBowler'] ?? null,
-            'status' => 'scheduled',
-            'created_at' => time(),
-            'created_by' => $_SESSION['admin_username'] ?? 'admin'
+            'status' => 'scheduled'
         ];
 
-        if (saveScheduledMatches($matches)) {
-            Common::jsonResponse(true, ['match' => $matches[$matchId]]);
+        $createdBy = $_SESSION['admin_username'] ?? 'admin';
+
+        if ($repo->create($matchId, $matchData, $createdBy)) {
+            $createdMatch = $repo->findById($matchId);
+            Common::jsonResponse(true, ['match' => $createdMatch]);
         } else {
             Common::jsonResponse(false, null, 'save_failed');
         }
@@ -163,31 +134,30 @@ try {
             Common::jsonResponse(false, null, 'invalid_csrf_token', 403);
         }
 
-        $matches = loadScheduledMatches();
         $matchId = $in['id'];
 
-        if (!isset($matches[$matchId])) {
+        if (!$repo->exists($matchId)) {
             Common::jsonResponse(false, null, 'not_found');
         }
 
-        // Update allowed fields
-        $updateFields = [
+        // Prepare update data with allowed fields
+        $updateData = [];
+        $allowedFields = [
             'scheduled_date', 'scheduled_time', 'match_name', 'players',
             'teamA', 'teamB', 'matchFormat', 'oversPerInnings', 'wicketsLimit',
             'tossWinner', 'tossDecision', 'openingBat1', 'openingBat2', 'openingBowler',
             'status'
         ];
 
-        foreach ($updateFields as $field) {
+        foreach ($allowedFields as $field) {
             if (isset($in[$field])) {
-                $matches[$matchId][$field] = $in[$field];
+                $updateData[$field] = $in[$field];
             }
         }
 
-        $matches[$matchId]['updated_at'] = time();
-
-        if (saveScheduledMatches($matches)) {
-            Common::jsonResponse(true, ['match' => $matches[$matchId]]);
+        if ($repo->update($matchId, $updateData) > 0 || !empty($updateData)) {
+            $updatedMatch = $repo->findById($matchId);
+            Common::jsonResponse(true, ['match' => $updatedMatch]);
         } else {
             Common::jsonResponse(false, null, 'save_failed');
         }
@@ -208,19 +178,16 @@ try {
             Common::jsonResponse(false, null, 'invalid_csrf_token', 403);
         }
 
-        $matches = loadScheduledMatches();
         $matchId = $in['id'];
 
-        if (!isset($matches[$matchId])) {
+        if (!$repo->exists($matchId)) {
             Common::jsonResponse(false, null, 'not_found');
         }
 
-        unset($matches[$matchId]);
-
-        if (saveScheduledMatches($matches)) {
+        if ($repo->delete($matchId) > 0) {
             Common::jsonResponse(true);
         } else {
-            Common::jsonResponse(false, null, 'save_failed');
+            Common::jsonResponse(false, null, 'delete_failed');
         }
     }
 

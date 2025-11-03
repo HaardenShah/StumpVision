@@ -4,54 +4,27 @@ session_start();
 
 /**
  * StumpVision — api/players.php
- * Player Registry API
+ * Player Registry API (Database version)
  */
 
 require_once __DIR__ . '/lib/Common.php';
+require_once __DIR__ . '/lib/Database.php';
+require_once __DIR__ . '/lib/repositories/PlayerRepository.php';
 
 use StumpVision\Common;
+use StumpVision\Repositories\PlayerRepository;
 
 // Send security headers
 Common::sendSecurityHeaders('DENY');
 
-$playersFile = __DIR__ . '/../data/players.json';
-
-/**
- * Load players from file
- */
-function loadPlayers(): array
-{
-    global $playersFile;
-
-    $result = Common::safeJsonRead($playersFile);
-    if (!$result['ok']) {
-        return [];
-    }
-
-    return is_array($result['data']) ? $result['data'] : [];
-}
-
-/**
- * Save players to file
- */
-function savePlayers(array $players): bool
-{
-    global $playersFile;
-
-    $dir = dirname($playersFile);
-    if (!Common::ensureDirectory($dir)) {
-        return false;
-    }
-
-    return Common::safeJsonWrite($playersFile, $players);
-}
+$repo = new PlayerRepository();
 
 /**
  * Generate a unique player code from name
  * Format: First 2 letters of first name + First 2 letters of last name + 4 digit number
  * Example: "John Smith" -> "JOSM-1234"
  */
-function generatePlayerCode(string $name, array $existingPlayers): string
+function generatePlayerCode(string $name, PlayerRepository $repo): string
 {
     // Extract initials
     $parts = preg_split('/\s+/', trim($name));
@@ -76,16 +49,8 @@ function generatePlayerCode(string $name, array $existingPlayers): string
         $number = str_pad((string)random_int(1000, 9999), 4, '0', STR_PAD_LEFT);
         $code = $prefix . '-' . $number;
 
-        // Check if code already exists
-        $exists = false;
-        foreach ($existingPlayers as $player) {
-            if (($player['code'] ?? '') === $code) {
-                $exists = true;
-                break;
-            }
-        }
-
-        if (!$exists) {
+        // Check if code is unique using repository
+        if ($repo->isCodeUnique($code)) {
             return $code;
         }
     }
@@ -112,7 +77,7 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 try {
     // LIST: Get all registered players (public)
     if ($action === 'list' && $method === 'GET') {
-        $players = loadPlayers();
+        $players = $repo->findAll();
         Common::jsonResponse(true, ['players' => array_values($players)]);
     }
 
@@ -123,9 +88,9 @@ try {
             Common::jsonResponse(false, null, 'missing_id');
         }
 
-        $players = loadPlayers();
-        if (isset($players[$playerId])) {
-            Common::jsonResponse(true, ['player' => $players[$playerId]]);
+        $player = $repo->findById($playerId);
+        if ($player) {
+            Common::jsonResponse(true, ['player' => $player]);
         } else {
             Common::jsonResponse(false, null, 'not_found');
         }
@@ -141,17 +106,10 @@ try {
             Common::jsonResponse(false, null, 'invalid_input');
         }
 
-        $players = loadPlayers();
         $code = strtoupper(trim($in['code']));
 
         // Find player by code
-        $found = null;
-        foreach ($players as $player) {
-            if (($player['code'] ?? '') === $code) {
-                $found = $player;
-                break;
-            }
-        }
+        $found = $repo->findByCode($code);
 
         if ($found) {
             // Return player info for verification
@@ -176,23 +134,20 @@ try {
             Common::jsonResponse(true, ['players' => []]);
         }
 
-        $players = loadPlayers();
-        $results = [];
+        $results = $repo->searchByName($query);
 
-        foreach ($players as $player) {
-            $playerName = strtolower($player['name']);
-            // Match if query is in player name
-            if (strpos($playerName, $query) !== false) {
-                $results[] = [
-                    'id' => $player['id'],
-                    'name' => $player['name'],
-                    'code' => $player['code'],
-                    'team' => $player['team'] ?? ''
-                ];
-            }
+        // Format results to match API contract
+        $formattedResults = [];
+        foreach ($results as $player) {
+            $formattedResults[] = [
+                'id' => $player['id'],
+                'name' => $player['name'],
+                'code' => $player['code'],
+                'team' => $player['team'] ?? ''
+            ];
         }
 
-        Common::jsonResponse(true, ['players' => $results]);
+        Common::jsonResponse(true, ['players' => $formattedResults]);
     }
 
     // Admin-only actions below
@@ -215,15 +170,15 @@ try {
             Common::jsonResponse(false, null, 'invalid_csrf_token', 403);
         }
 
-        $players = loadPlayers();
-
         // Generate UUID for new player
         $playerId = generateUUID();
 
-        // Check if name already exists (warn but allow)
+        // Check if name already exists (warn but prevent)
         $nameSlug = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $in['name']));
+        $allPlayers = $repo->findAll();
         $nameExists = false;
-        foreach ($players as $p) {
+
+        foreach ($allPlayers as $p) {
             if (strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $p['name'])) === $nameSlug) {
                 $nameExists = true;
                 break;
@@ -235,20 +190,22 @@ try {
         }
 
         // Generate unique player code
-        $playerCode = generatePlayerCode($in['name'], $players);
+        $playerCode = generatePlayerCode($in['name'], $repo);
 
-        $players[$playerId] = [
+        // Create player data
+        $playerData = [
             'id' => $playerId,
             'name' => trim($in['name']),
             'code' => $playerCode,
             'team' => trim($in['team'] ?? ''),
             'player_type' => trim($in['player_type'] ?? ''),
-            'registered_at' => time(),
             'registered_by' => $_SESSION['admin_username'] ?? 'admin'
         ];
 
-        if (savePlayers($players)) {
-            Common::jsonResponse(true, ['player' => $players[$playerId]]);
+        if ($repo->create($playerData)) {
+            // Return the created player
+            $createdPlayer = $repo->findById($playerId);
+            Common::jsonResponse(true, ['player' => $createdPlayer]);
         } else {
             Common::jsonResponse(false, null, 'save_failed');
         }
@@ -269,26 +226,27 @@ try {
             Common::jsonResponse(false, null, 'invalid_csrf_token', 403);
         }
 
-        $players = loadPlayers();
         $playerId = $in['id'];
 
-        if (!isset($players[$playerId])) {
+        if (!$repo->exists($playerId)) {
             Common::jsonResponse(false, null, 'not_found');
         }
 
-        if (isset($in['name'])) $players[$playerId]['name'] = trim($in['name']);
-        if (isset($in['team'])) $players[$playerId]['team'] = trim($in['team']);
-        if (isset($in['player_type'])) $players[$playerId]['player_type'] = trim($in['player_type']);
-        $players[$playerId]['updated_at'] = time();
+        // Prepare update data
+        $updateData = [];
+        if (isset($in['name'])) $updateData['name'] = trim($in['name']);
+        if (isset($in['team'])) $updateData['team'] = trim($in['team']);
+        if (isset($in['player_type'])) $updateData['player_type'] = trim($in['player_type']);
 
-        if (savePlayers($players)) {
-            Common::jsonResponse(true, ['player' => $players[$playerId]]);
+        if ($repo->update($playerId, $updateData) > 0) {
+            $updatedPlayer = $repo->findById($playerId);
+            Common::jsonResponse(true, ['player' => $updatedPlayer]);
         } else {
             Common::jsonResponse(false, null, 'save_failed');
         }
     }
 
-    // DELETE: Remove player
+    // DELETE: Remove player (soft delete)
     if ($action === 'delete' && $method === 'POST') {
         $raw = file_get_contents('php://input');
         $in = json_decode($raw, true);
@@ -303,19 +261,16 @@ try {
             Common::jsonResponse(false, null, 'invalid_csrf_token', 403);
         }
 
-        $players = loadPlayers();
         $playerId = $in['id'];
 
-        if (!isset($players[$playerId])) {
+        if (!$repo->exists($playerId)) {
             Common::jsonResponse(false, null, 'not_found');
         }
 
-        unset($players[$playerId]);
-
-        if (savePlayers($players)) {
+        if ($repo->delete($playerId) > 0) {
             Common::jsonResponse(true);
         } else {
-            Common::jsonResponse(false, null, 'save_failed');
+            Common::jsonResponse(false, null, 'delete_failed');
         }
     }
 
