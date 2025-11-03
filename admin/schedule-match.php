@@ -557,6 +557,9 @@ $csrfToken = getAdminCsrfToken();
     </div>
 
     <script>
+        // CSRF Token
+        const csrfToken = <?= json_encode($csrfToken) ?>;
+
         // Update selected count
         document.getElementById('playerSelection').addEventListener('change', () => {
             const count = document.querySelectorAll('#playerSelection input:checked').length;
@@ -583,6 +586,7 @@ $csrfToken = getAdminCsrfToken();
             }
 
             const payload = {
+                csrf_token: csrfToken,
                 match_name: document.getElementById('matchName').value,
                 scheduled_date: document.getElementById('scheduledDate').value,
                 scheduled_time: document.getElementById('scheduledTime').value,
@@ -693,7 +697,7 @@ $csrfToken = getAdminCsrfToken();
                 const response = await fetch('/api/scheduled-matches.php?action=delete', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: matchId })
+                    body: JSON.stringify({ csrf_token: csrfToken, id: matchId })
                 });
 
                 const result = await response.json();
