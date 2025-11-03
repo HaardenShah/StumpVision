@@ -1,39 +1,29 @@
 <?php
 declare(strict_types=1);
 require_once 'auth.php';
+require_once __DIR__ . '/../api/lib/Database.php';
+require_once __DIR__ . '/../api/lib/repositories/PlayerRepository.php';
+require_once __DIR__ . '/../api/lib/repositories/MatchRepository.php';
+
+use StumpVision\Repositories\PlayerRepository;
+use StumpVision\Repositories\MatchRepository;
+
 requireAdmin();
 checkPasswordChangeRequired();
 
-use StumpVision\Common;
-
-$dataDir = __DIR__ . '/../data';
-$playersFile = $dataDir . '/players.json';
+$playerRepo = new PlayerRepository();
+$matchRepo = new MatchRepository();
 
 // Load registered players
-$registeredPlayers = [];
-if (is_file($playersFile)) {
-    $result = Common::safeJsonRead($playersFile);
-    if ($result['ok'] && is_array($result['data'])) {
-        $registeredPlayers = $result['data'];
-    }
-}
+$registeredPlayers = $playerRepo->getAllAsAssociativeArray();
 
 // Aggregate stats from verified matches
 $playerStats = [];
 
-$matchFiles = glob($dataDir . '/*.json') ?: [];
-foreach ($matchFiles as $file) {
-    $result = Common::safeJsonRead($file);
-    if (!$result['ok'] || !is_array($result['data'])) {
-        continue;
-    }
-    $matchData = $result['data'];
+// Load all verified matches from database
+$verifiedMatches = $matchRepo->findAll(1000, 0, true);
 
-    // Only count verified matches
-    if (!($matchData['__verified'] ?? false)) {
-        continue;
-    }
-
+foreach ($verifiedMatches as $matchData) {
     // Process innings
     $innings = $matchData['innings'] ?? [];
     foreach ($innings as $inning) {
