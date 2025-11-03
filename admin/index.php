@@ -1,5 +1,12 @@
 <?php
 declare(strict_types=1);
+
+require_once __DIR__ . '/../api/lib/InstallCheck.php';
+use StumpVision\InstallCheck;
+
+// Redirect to installer if not installed
+InstallCheck::requireInstalled();
+
 require_once 'auth.php';
 require_once __DIR__ . '/../api/lib/Database.php';
 require_once __DIR__ . '/../api/lib/repositories/MatchRepository.php';
