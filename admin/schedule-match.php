@@ -29,9 +29,55 @@ $csrfToken = getAdminCsrfToken();
     <title>Schedule Match - StumpVision Admin</title>
     <link rel="stylesheet" href="styles.css">
     <style>
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -1000px 0;
+            }
+            100% {
+                background-position: 1000px 0;
+            }
+        }
+
         .schedule-container {
             max-width: 900px;
             margin: 0 auto;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .admin-header {
+            animation: fadeIn 0.3s ease-out;
         }
 
         .player-selection {
@@ -41,57 +87,121 @@ $csrfToken = getAdminCsrfToken();
             max-height: 400px;
             overflow-y: auto;
             padding: 12px;
-            border: 2px solid var(--border);
-            border-radius: 8px;
-            background: var(--bg-secondary);
+            border: 2px solid var(--line);
+            border-radius: 12px;
+            background: var(--bg);
             margin-bottom: 16px;
+        }
+
+        .player-selection::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .player-selection::-webkit-scrollbar-track {
+            background: var(--bg);
+            border-radius: 8px;
+        }
+
+        .player-selection::-webkit-scrollbar-thumb {
+            background: var(--line);
+            border-radius: 8px;
+        }
+
+        .player-selection::-webkit-scrollbar-thumb:hover {
+            background: var(--accent);
         }
 
         .player-checkbox {
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 8px;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 6px;
+            padding: 10px 12px;
+            background: var(--card);
+            border: 2px solid var(--line);
+            border-radius: 8px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: fadeIn 0.3s ease-out backwards;
         }
 
+        .player-checkbox:nth-child(1) { animation-delay: 0.05s; }
+        .player-checkbox:nth-child(2) { animation-delay: 0.1s; }
+        .player-checkbox:nth-child(3) { animation-delay: 0.15s; }
+        .player-checkbox:nth-child(4) { animation-delay: 0.2s; }
+
         .player-checkbox:hover {
-            background: var(--hover);
+            background: rgba(14, 165, 233, 0.1);
+            border-color: var(--accent);
+            transform: translateX(4px);
+        }
+
+        .player-checkbox:has(input:checked) {
+            background: rgba(14, 165, 233, 0.15);
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
         }
 
         .player-checkbox input[type="checkbox"] {
             width: 18px;
             height: 18px;
             cursor: pointer;
+            accent-color: var(--accent);
+            transition: transform 0.2s;
+        }
+
+        .player-checkbox input[type="checkbox"]:checked {
+            transform: scale(1.1);
         }
 
         .player-checkbox label {
             cursor: pointer;
             flex: 1;
             font-size: 14px;
+            font-weight: 500;
+            color: var(--ink);
+            transition: color 0.2s;
+        }
+
+        .player-checkbox:hover label {
+            color: var(--accent);
         }
 
         .selected-count {
             font-size: 14px;
-            color: var(--text-secondary);
-            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--muted);
+            margin-bottom: 12px;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .selected-count span {
+            color: var(--accent);
+            font-weight: 700;
+            font-size: 16px;
         }
 
         .form-section {
-            background: var(--bg-card);
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            border: 2px solid var(--border);
+            background: var(--card);
+            padding: 24px;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            border: 2px solid var(--line);
+            animation: fadeIn 0.4s ease-out backwards;
+            transition: all 0.3s;
+        }
+
+        .form-section:nth-child(1) { animation-delay: 0.1s; }
+        .form-section:nth-child(2) { animation-delay: 0.2s; }
+
+        .form-section:hover {
+            box-shadow: 0 4px 20px var(--shadow);
         }
 
         .form-section h3 {
-            margin-bottom: 16px;
-            color: var(--text);
+            margin-bottom: 20px;
+            color: var(--ink);
+            font-weight: 700;
+            font-size: 18px;
         }
 
         .form-grid {
@@ -101,103 +211,250 @@ $csrfToken = getAdminCsrfToken();
         }
 
         .form-group {
-            margin-bottom: 16px;
+            margin-bottom: 0;
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
             font-weight: 600;
-            color: var(--text);
+            color: var(--muted);
             font-size: 14px;
         }
 
         .form-group input,
         .form-group select {
             width: 100%;
-            padding: 10px;
-            border: 2px solid var(--border);
+            padding: 10px 12px;
+            border: 2px solid var(--line);
             border-radius: 8px;
+            background: var(--bg);
+            color: var(--ink);
             font-size: 14px;
+            transition: all 0.25s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
         }
 
         .match-id-display {
-            background: var(--success-bg);
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(34, 197, 94, 0.1) 100%);
+            border: 2px solid var(--success);
             color: var(--success);
-            padding: 20px;
-            border-radius: 12px;
+            padding: 32px;
+            border-radius: 16px;
             text-align: center;
-            margin: 20px 0;
+            margin: 24px 0;
+            animation: scaleIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 8px 32px rgba(34, 197, 94, 0.2);
         }
 
         .match-id-display h2 {
-            font-size: 48px;
-            font-weight: 800;
-            letter-spacing: 8px;
-            font-family: monospace;
+            font-size: 56px;
+            font-weight: 900;
+            letter-spacing: 12px;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 12px;
+            animation: pulse 2s ease-in-out infinite;
+            text-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
         }
 
         .match-id-display p {
-            margin-top: 10px;
-            font-size: 14px;
+            margin-top: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            opacity: 0.9;
         }
 
         .btn-group {
             display: flex;
             gap: 12px;
-            margin-top: 20px;
+            margin-top: 24px;
+            animation: fadeIn 0.5s ease-out backwards;
+            animation-delay: 0.3s;
         }
 
         .btn-group button {
             flex: 1;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-group button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+
+        .btn-group button:active {
+            transform: translateY(0);
+        }
+
+        .btn {
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+
+        .btn-secondary {
+            background: var(--bg);
+            border: 2px solid var(--line);
+            color: var(--ink);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            opacity: 0.9;
         }
 
         .scheduled-matches-list {
-            margin-top: 40px;
+            margin-top: 48px;
+            animation: fadeIn 0.6s ease-out backwards;
+            animation-delay: 0.4s;
+        }
+
+        .scheduled-matches-list h2 {
+            margin-bottom: 24px;
+            font-size: 24px;
+            font-weight: 800;
         }
 
         .match-card {
-            background: var(--bg-card);
-            border: 2px solid var(--border);
-            border-radius: 12px;
-            padding: 16px;
+            background: var(--card);
+            border: 2px solid var(--line);
+            border-radius: 16px;
+            padding: 20px;
             margin-bottom: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: fadeIn 0.4s ease-out backwards;
+        }
+
+        .match-card:nth-child(1) { animation-delay: 0.05s; }
+        .match-card:nth-child(2) { animation-delay: 0.1s; }
+        .match-card:nth-child(3) { animation-delay: 0.15s; }
+
+        .match-card:hover {
+            transform: translateX(8px);
+            border-color: var(--accent);
+            box-shadow: 0 8px 24px var(--shadow);
         }
 
         .match-card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            margin-bottom: 16px;
         }
 
         .match-id-badge {
-            font-family: monospace;
-            font-size: 24px;
-            font-weight: 800;
-            color: var(--primary);
+            font-family: 'Courier New', monospace;
+            font-size: 28px;
+            font-weight: 900;
+            color: var(--accent);
+            letter-spacing: 2px;
+            text-shadow: 0 2px 4px rgba(14, 165, 233, 0.2);
         }
 
         .match-date {
             font-size: 14px;
-            color: var(--text-secondary);
+            font-weight: 600;
+            color: var(--muted);
         }
 
         .match-players {
             font-size: 14px;
-            color: var(--text-secondary);
-            margin-top: 8px;
+            font-weight: 500;
+            color: var(--muted);
+            margin-top: 12px;
         }
 
         .action-buttons {
             display: flex;
             gap: 8px;
-            margin-top: 12px;
+            margin-top: 16px;
         }
 
         .action-buttons button {
-            padding: 6px 12px;
+            padding: 8px 14px;
             font-size: 13px;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .action-buttons button:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Loading state */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            color: var(--muted);
+        }
+
+        .loading::after {
+            content: '';
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--line);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-left: 12px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .player-selection {
+                grid-template-columns: 1fr;
+                max-height: 300px;
+            }
+
+            .match-id-display h2 {
+                font-size: 36px;
+                letter-spacing: 6px;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .match-card:hover {
+                transform: translateY(-4px);
+            }
         }
     </style>
 </head>
@@ -294,7 +551,7 @@ $csrfToken = getAdminCsrfToken();
         <div class="scheduled-matches-list">
             <h2>Scheduled Matches</h2>
             <div id="matchesList">
-                <p style="text-align: center; color: var(--text-secondary);">Loading...</p>
+                <div class="loading">Loading matches</div>
             </div>
         </div>
     </div>
@@ -382,7 +639,7 @@ $csrfToken = getAdminCsrfToken();
                     const container = document.getElementById('matchesList');
 
                     if (result.matches.length === 0) {
-                        container.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No scheduled matches</p>';
+                        container.innerHTML = '<p class="empty-state">No scheduled matches yet</p>';
                         return;
                     }
 
