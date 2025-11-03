@@ -967,14 +967,17 @@
         // Restore the entire match state
         Object.assign(matchState, state);
 
+        // Restore the live session ID for continued state persistence
+        liveShareId = liveId;
+
         console.log('Match state restored from database:', matchState);
 
         // Update UI
         updateDisplay();
         updateSettings();
 
-        // Resume auto-saving
-        if (!liveUpdateInterval && liveShareId) {
+        // Resume auto-saving to keep state updated
+        if (!liveUpdateInterval) {
           liveUpdateInterval = setInterval(pushLiveUpdate, 5000);
         }
 
