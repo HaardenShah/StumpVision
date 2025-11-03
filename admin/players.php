@@ -197,12 +197,10 @@ $players = $repo->findAll();
                         <label for="player_type">Player Type (Optional)</label>
                         <select id="player_type" name="player_type">
                             <option value="">-- Select Type --</option>
-                            <option value="Right-Hand Batsman">Right-Hand Batsman</option>
-                            <option value="Left-Hand Batsman">Left-Hand Batsman</option>
-                            <option value="Fast Bowler">Fast Bowler</option>
-                            <option value="Spin Bowler">Spin Bowler</option>
-                            <option value="Wicket-Keeper">Wicket-Keeper</option>
-                            <option value="All-Rounder">All-Rounder</option>
+                            <option value="Batsman">Batsman</option>
+                            <option value="Bowler">Bowler</option>
+                            <option value="All-rounder">All-rounder</option>
+                            <option value="Wicket-keeper">Wicket-keeper</option>
                         </select>
                     </div>
 
@@ -280,12 +278,10 @@ $players = $repo->findAll();
                     <label for="edit_player_type">Player Type</label>
                     <select id="edit_player_type" name="player_type">
                         <option value="">-- Select Type --</option>
-                        <option value="Right-Hand Batsman">Right-Hand Batsman</option>
-                        <option value="Left-Hand Batsman">Left-Hand Batsman</option>
-                        <option value="Fast Bowler">Fast Bowler</option>
-                        <option value="Spin Bowler">Spin Bowler</option>
-                        <option value="Wicket-Keeper">Wicket-Keeper</option>
-                        <option value="All-Rounder">All-Rounder</option>
+                        <option value="Batsman">Batsman</option>
+                        <option value="Bowler">Bowler</option>
+                        <option value="All-rounder">All-rounder</option>
+                        <option value="Wicket-keeper">Wicket-keeper</option>
                     </select>
                 </div>
 

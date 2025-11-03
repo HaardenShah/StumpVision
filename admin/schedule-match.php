@@ -10,7 +10,7 @@ checkPasswordChangeRequired();
 // Load players from database
 function loadPlayers(): array {
     try {
-        $repo = new \StumpVision\PlayerRepository();
+        $repo = new \StumpVision\Repositories\PlayerRepository();
         return $repo->findAll();
     } catch (\Exception $e) {
         error_log("Failed to load players: " . $e->getMessage());
