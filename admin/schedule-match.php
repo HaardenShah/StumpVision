@@ -1,18 +1,21 @@
 <?php
 declare(strict_types=1);
 require_once 'auth.php';
+require_once __DIR__ . '/../api/lib/Database.php';
+require_once __DIR__ . '/../api/lib/repositories/PlayerRepository.php';
+
 requireAdmin();
 checkPasswordChangeRequired();
 
-// Load players for selection
+// Load players from database
 function loadPlayers(): array {
-    $playersFile = __DIR__ . '/../data/players.json';
-    if (!is_file($playersFile)) {
+    try {
+        $repo = new \StumpVision\PlayerRepository();
+        return $repo->findAll();
+    } catch (\Exception $e) {
+        error_log("Failed to load players: " . $e->getMessage());
         return [];
     }
-    $content = file_get_contents($playersFile);
-    $data = json_decode($content, true);
-    return is_array($data) ? array_values($data) : [];
 }
 
 $players = loadPlayers();
