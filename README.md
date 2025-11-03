@@ -1,10 +1,10 @@
-# StumpVision v2.3 — Cricket Scorer
+# StumpVision v2.4 — Cricket Scorer
 
 **StumpVision** is a lightweight, mobile-first web app for scoring cricket matches. Built with **PHP + vanilla JavaScript**, it works completely offline, installs as a PWA, and provides **real-time live score sharing** for spectators.
 
 Perfect for pickup cricket, club matches, and growing your cricket community!
 
-**Latest Update (v2.3):** Major security improvements, bug fixes, and code consolidation. All critical vulnerabilities patched.
+**Latest Update (v2.4):** Complete SQLite database migration, admin setup wizard, comprehensive bug fixes, and improved installation experience.
 
 ---
 
@@ -40,11 +40,13 @@ Perfect for pickup cricket, club matches, and growing your cricket community!
 - Start/stop live sharing from scoring interface
 
 ### Admin Panel
+- **First-time setup wizard** - Easy installation and configuration
 - Password-protected dashboard with session management
 - Match management (view, verify, delete matches)
 - Player database and statistics tracking
 - Live session monitoring
 - System settings configuration
+- Database migration interface for upgrading from legacy versions
 
 ### Mobile Experience
 - Sunlight-optimized UI (high contrast for outdoor visibility)
@@ -571,7 +573,35 @@ Need help? Check:
 
 ## Changelog
 
-### v2.3 (Latest - November 2025)
+### v2.4 (Latest - November 2025)
+**MAJOR NEW FEATURES:**
+- **Admin Setup Wizard** - First-time installation wizard for easy setup
+- **Web-based Database Migration** - User-friendly migration interface at `/migrations/migrate.php`
+- **Installation Checks** - All admin pages verify database setup before loading
+- **Complete SQLite Migration** - Fully migrated from JSON file storage to SQLite database with repository pattern
+
+**ARCHITECTURE IMPROVEMENTS:**
+- Implemented 3-phase database migration strategy
+- Created repository pattern for all data access (Match, Player, LiveSession, ScheduledMatch)
+- Added comprehensive migration documentation
+- Database layer with connection pooling and WAL mode
+
+**BUG FIXES:**
+- Fixed database schema conflicts and added comprehensive edge case testing
+- Fixed liveShareId restoration on match resume
+- Fixed session authentication for admin API endpoints and scheduled match calls
+- Fixed CSRF token validation for match scheduling
+- Fixed PlayerRepository namespace issues
+- Fixed player type constraint violations in registration form
+- Fixed scoring logic edge cases
+
+**UI IMPROVEMENTS:**
+- Enhanced CSS and animations in schedule-match.php
+- Better error messaging during setup and migration
+
+**Impact:** Complete database migration completed, improved installation experience, fixed 8+ critical bugs
+
+### v2.3 (November 2025)
 **CRITICAL SECURITY FIXES:**
 - Added CSRF protection to `api/scheduled-matches.php` and `api/players.php`
 - Fixed 15+ instances of unchecked file operations
@@ -622,4 +652,4 @@ Need help? Check:
 
 ---
 
-*StumpVision v2.3 - Score fast. Share live. Play cricket. Now more secure and reliable!*
+*StumpVision v2.4 - Score fast. Share live. Play cricket. Now with SQLite database and easier setup!*
