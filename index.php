@@ -902,6 +902,20 @@
         return;
       }
 
+      // Check if resuming an existing match from live session
+      const savedMatchId = localStorage.getItem('stumpvision_match_id');
+      const savedLiveId = localStorage.getItem('stumpvision_live_id');
+
+      if (savedMatchId && savedLiveId) {
+        console.log('Attempting to resume match from live session:', savedLiveId);
+        const resumed = await resumeFromLiveSession(savedLiveId, savedMatchId);
+        if (resumed) {
+          console.log('Match resumed successfully from database');
+          return;
+        }
+        console.log('Failed to resume from live session, starting fresh');
+      }
+
       const saved = localStorage.getItem('stumpvision_match');
       if (!saved) {
         console.log('No match data, redirecting to setup');
@@ -936,6 +950,39 @@
       updateDisplay();
       updateSettings();
       console.log('Initialization complete');
+    }
+
+    async function resumeFromLiveSession(liveId, matchId) {
+      try {
+        const response = await fetch(`api/live.php?action=get&live_id=${liveId}`);
+        const data = await response.json();
+
+        if (!data.ok || !data.session || !data.session.current_state) {
+          console.error('Failed to load live session:', data.err);
+          return false;
+        }
+
+        const state = data.session.current_state;
+
+        // Restore the entire match state
+        Object.assign(matchState, state);
+
+        console.log('Match state restored from database:', matchState);
+
+        // Update UI
+        updateDisplay();
+        updateSettings();
+
+        // Resume auto-saving
+        if (!liveUpdateInterval && liveShareId) {
+          liveUpdateInterval = setInterval(pushLiveUpdate, 5000);
+        }
+
+        return true;
+      } catch (error) {
+        console.error('Error resuming from live session:', error);
+        return false;
+      }
     }
 
     function promptStartingPlayers() {
@@ -1359,15 +1406,16 @@
     function showBatsmanModal() {
       const select = document.getElementById('newBatsmanSelect');
       const battingPlayers = matchState.setup[matchState.battingTeam].players;
-      
+
       // Filter out the run out victim if set, otherwise filter current batsmen
-      const excludePlayers = matchState.runOutVictim ? 
-        [matchState.runOutVictim] : 
+      const excludePlayers = matchState.runOutVictim ?
+        [matchState.runOutVictim] :
         [matchState.striker, matchState.nonStriker];
-      
+
       select.innerHTML = battingPlayers
-        .filter(p => !matchState.batsmen[p].out && !matchState.batsmen[p].retired && !excludePlayers.includes(p))
-        .map(p => `<option value="${p}">${p}</option>`)
+        .map(p => typeof p === 'string' ? p : p.name)
+        .filter(playerName => !matchState.batsmen[playerName].out && !matchState.batsmen[playerName].retired && !excludePlayers.includes(playerName))
+        .map(playerName => `<option value="${playerName}">${playerName}</option>`)
         .join('');
       document.getElementById('batsmanModal').classList.add('active');
       document.getElementById('batsmanModal').removeAttribute('data-mode');
@@ -1381,8 +1429,9 @@
         matchState.striker = select.value;
         const battingPlayers = matchState.setup[matchState.battingTeam].players;
         select.innerHTML = battingPlayers
-          .filter(p => !matchState.batsmen[p].out && !matchState.batsmen[p].retired && p !== matchState.striker)
-          .map(p => `<option value="${p}">${p}</option>`)
+          .map(p => typeof p === 'string' ? p : p.name)
+          .filter(playerName => !matchState.batsmen[playerName].out && !matchState.batsmen[playerName].retired && playerName !== matchState.striker)
+          .map(playerName => `<option value="${playerName}">${playerName}</option>`)
           .join('');
         document.getElementById('batsmanModalTitle').textContent = 'Select Opening Batsman 2';
         document.getElementById('batsmanModal').setAttribute('data-mode', 'second-innings-bat2');
@@ -1390,11 +1439,12 @@
         matchState.nonStriker = select.value;
         closeModal('batsmanModal');
         document.getElementById('batsmanModalTitle').textContent = 'New Batsman';
-        
+
         const bowlerSelect = document.getElementById('newBowlerSelect');
         const bowlingPlayers = matchState.setup[matchState.bowlingTeam].players;
         bowlerSelect.innerHTML = bowlingPlayers
-          .map(p => `<option value="${p}">${p}</option>`)
+          .map(p => typeof p === 'string' ? p : p.name)
+          .map(playerName => `<option value="${playerName}">${playerName}</option>`)
           .join('');
         document.getElementById('newOverModal').classList.add('active');
         document.getElementById('newOverModal').setAttribute('data-mode', 'second-innings');
@@ -2139,6 +2189,9 @@
       if (!matchState.saveId) {
         console.log('First ball - auto-saving to generate match ID');
         await saveMatch(true);
+
+        // Auto-create live session for state persistence (even if not sharing publicly)
+        await ensureLiveSession();
         return;
       }
 
@@ -2150,7 +2203,72 @@
           console.log('Auto-saving match after over completion');
           lastAutoSaveTime = now;
           await saveMatch(true);
+
+          // Update live session state
+          await updateLiveSessionState();
         }
+      }
+    }
+
+    async function ensureLiveSession() {
+      // If live session already exists, don't create another one
+      if (liveShareId) {
+        await updateLiveSessionState();
+        return;
+      }
+
+      if (!matchState.saveId) {
+        console.log('Cannot create live session without match ID');
+        return;
+      }
+
+      try {
+        console.log('Auto-creating live session for match persistence');
+        const response = await fetch('api/live.php?action=create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            match_id: matchState.saveId,
+            scheduled_match_id: matchState.setup.loadedMatchId || null
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.ok && result.live_id) {
+          liveShareId = result.live_id;
+
+          // Save to localStorage for resume on reload
+          localStorage.setItem('stumpvision_match_id', matchState.saveId);
+          localStorage.setItem('stumpvision_live_id', liveShareId);
+
+          console.log('Live session created:', liveShareId);
+
+          // Push initial state
+          await updateLiveSessionState();
+        } else {
+          console.error('Failed to create live session:', result.err);
+        }
+      } catch (error) {
+        console.error('Error creating live session:', error);
+      }
+    }
+
+    async function updateLiveSessionState() {
+      if (!liveShareId) return;
+
+      try {
+        await fetch('api/live.php?action=update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            live_id: liveShareId,
+            state: matchState
+          })
+        });
+        console.log('Live session state updated');
+      } catch (error) {
+        console.error('Error updating live session state:', error);
       }
     }
 
