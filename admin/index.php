@@ -1,34 +1,31 @@
 <?php
 declare(strict_types=1);
 require_once 'auth.php';
+require_once __DIR__ . '/../api/lib/Database.php';
+require_once __DIR__ . '/../api/lib/repositories/MatchRepository.php';
+require_once __DIR__ . '/../api/lib/repositories/PlayerRepository.php';
+require_once __DIR__ . '/../api/lib/repositories/LiveSessionRepository.php';
+
+use StumpVision\Repositories\MatchRepository;
+use StumpVision\Repositories\PlayerRepository;
+use StumpVision\Repositories\LiveSessionRepository;
+
 requireAdmin();
 checkPasswordChangeRequired();
 
-$dataDir = __DIR__ . '/../data';
-$liveDir = __DIR__ . '/../data/live';
+// Initialize repositories
+$matchRepo = new MatchRepository();
+$playerRepo = new PlayerRepository();
+$liveRepo = new LiveSessionRepository();
 
-// Count matches
-$matchFiles = glob($dataDir . '/*.json') ?: [];
-$totalMatches = count($matchFiles);
-
-// Count active live sessions
-$liveSessions = 0;
-if (is_dir($liveDir)) {
-    $liveFiles = glob($liveDir . '/*.json') ?: [];
-    foreach ($liveFiles as $file) {
-        $data = json_decode(file_get_contents($file), true);
-        if ($data && ($data['active'] ?? false)) {
-            $liveSessions++;
-        }
-    }
-}
+// Get statistics from database
+$totalMatches = $matchRepo->count();
+$verifiedMatches = $matchRepo->count(true);
+$totalPlayers = $playerRepo->count();
+$liveSessions = $liveRepo->count(true);
 
 // Get recent matches
-$recentMatches = [];
-if (count($matchFiles) > 0) {
-    usort($matchFiles, fn($a, $b) => filemtime($b) <=> filemtime($a));
-    $recentMatches = array_slice($matchFiles, 0, 5);
-}
+$recentMatches = $matchRepo->getRecent(5);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -59,13 +56,13 @@ if (count($matchFiles) > 0) {
 
             <div class="stat-card">
                 <div class="stat-icon">📊</div>
-                <div class="stat-value">0</div>
+                <div class="stat-value"><?php echo $totalPlayers; ?></div>
                 <div class="stat-label">Registered Players</div>
             </div>
 
             <div class="stat-card">
                 <div class="stat-icon">✅</div>
-                <div class="stat-value">0</div>
+                <div class="stat-value"><?php echo $verifiedMatches; ?></div>
                 <div class="stat-label">Verified Matches</div>
             </div>
         </div>
@@ -75,19 +72,16 @@ if (count($matchFiles) > 0) {
                 <h2>Recent Matches</h2>
                 <?php if (count($recentMatches) > 0): ?>
                     <div class="match-list">
-                        <?php foreach ($recentMatches as $file): ?>
+                        <?php foreach ($recentMatches as $match): ?>
                             <?php
-                            $id = basename($file, '.json');
-                            $data = json_decode(file_get_contents($file), true);
-                            $title = $data['meta']['title'] ?? 'Unknown Match';
-                            $date = date('M j, Y g:i A', filemtime($file));
+                            $date = date('M j, Y g:i A', $match['created_at']);
                             ?>
                             <div class="match-item">
                                 <div class="match-info">
-                                    <strong><?php echo htmlspecialchars($title); ?></strong>
+                                    <strong><?php echo htmlspecialchars($match['title']); ?></strong>
                                     <span class="match-date"><?php echo $date; ?></span>
                                 </div>
-                                <a href="matches.php?view=<?php echo urlencode($id); ?>" class="btn-small">View</a>
+                                <a href="matches.php?view=<?php echo urlencode($match['id']); ?>" class="btn-small">View</a>
                             </div>
                         <?php endforeach; ?>
                     </div>

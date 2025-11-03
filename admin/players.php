@@ -1,8 +1,15 @@
 <?php
 declare(strict_types=1);
 require_once 'auth.php';
+require_once __DIR__ . '/../api/lib/Database.php';
+require_once __DIR__ . '/../api/lib/repositories/PlayerRepository.php';
+
+use StumpVision\Repositories\PlayerRepository;
+
 requireAdmin();
 checkPasswordChangeRequired();
+
+$repo = new PlayerRepository();
 
 $message = '';
 $messageType = '';
@@ -27,17 +34,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message = 'Player name is required';
                 $messageType = 'error';
             } else {
-                // Load current players
-                $playersFile = __DIR__ . '/../data/players.json';
-                $players = [];
-                if (is_file($playersFile)) {
-                    $players = json_decode(file_get_contents($playersFile), true) ?: [];
-                }
-
-                // Check if player name already exists
+                // Check if player name already exists (using database search)
                 $nameSlug = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $name));
+                $existingPlayers = $repo->findAll();
                 $nameExists = false;
-                foreach ($players as $p) {
+                foreach ($existingPlayers as $p) {
                     if (strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $p['name'])) === $nameSlug) {
                         $nameExists = true;
                         break;
@@ -74,20 +75,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                     $prefix = str_pad($prefix, 4, 'X');
 
-                    // Generate unique code
+                    // Generate unique code using repository
                     $codeUnique = false;
                     $attempts = 0;
+                    $playerCode = '';
                     while (!$codeUnique && $attempts < 100) {
                         $number = str_pad((string)mt_rand(1000, 9999), 4, '0', STR_PAD_LEFT);
                         $playerCode = $prefix . '-' . $number;
-
-                        $codeUnique = true;
-                        foreach ($players as $p) {
-                            if (($p['code'] ?? '') === $playerCode) {
-                                $codeUnique = false;
-                                break;
-                            }
-                        }
+                        $codeUnique = $repo->isCodeUnique($playerCode);
                         $attempts++;
                     }
 
@@ -95,24 +90,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $playerCode = $prefix . '-' . substr((string)time(), -4);
                     }
 
-                    // Add new player
-                    $players[$playerId] = [
+                    // Create new player using repository
+                    $playerData = [
                         'id' => $playerId,
                         'name' => $name,
                         'code' => $playerCode,
                         'team' => $team,
                         'player_type' => $playerType,
-                        'registered_at' => time(),
                         'registered_by' => $_SESSION['admin_username'] ?? 'admin'
                     ];
 
-                    // Save players
-                    $dataDir = __DIR__ . '/../data';
-                    if (!is_dir($dataDir)) {
-                        mkdir($dataDir, 0755, true);
-                    }
-
-                    if (file_put_contents($playersFile, json_encode($players, JSON_PRETTY_PRINT)) !== false) {
+                    if ($repo->create($playerData)) {
                         $message = 'Player registered successfully with code: ' . $playerCode;
                         $messageType = 'success';
                     } else {
@@ -130,24 +118,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message = 'Player ID is required';
                 $messageType = 'error';
             } else {
-                // Load current players
-                $playersFile = __DIR__ . '/../data/players.json';
-                $players = [];
-                if (is_file($playersFile)) {
-                    $players = json_decode(file_get_contents($playersFile), true) ?: [];
-                }
-
-                if (!isset($players[$playerId])) {
+                // Check if player exists
+                if (!$repo->exists($playerId)) {
                     $message = 'Player not found';
                     $messageType = 'error';
                 } else {
-                    // Update player
-                    $players[$playerId]['team'] = $team;
-                    $players[$playerId]['player_type'] = $playerType;
-                    $players[$playerId]['updated_at'] = time();
+                    // Update player using repository
+                    $playerData = [
+                        'team' => $team,
+                        'player_type' => $playerType
+                    ];
 
-                    // Save players
-                    if (file_put_contents($playersFile, json_encode($players, JSON_PRETTY_PRINT)) !== false) {
+                    if ($repo->update($playerId, $playerData) > 0) {
                         $message = 'Player updated successfully';
                         $messageType = 'success';
                     } else {
@@ -160,12 +142,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Load players
-$playersFile = __DIR__ . '/../data/players.json';
-$players = [];
-if (is_file($playersFile)) {
-    $players = json_decode(file_get_contents($playersFile), true) ?: [];
-}
+// Load players from database
+$players = $repo->findAll();
 ?>
 <!DOCTYPE html>
 <html lang="en">

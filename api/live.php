@@ -4,14 +4,17 @@ session_start();
 
 /**
  * StumpVision — api/live.php
- * Live score sharing API (configurable via admin settings)
+ * Live score sharing API (Database version)
  */
 
 // Load configuration
 require_once __DIR__ . '/../admin/config-helper.php';
 require_once __DIR__ . '/lib/Common.php';
+require_once __DIR__ . '/lib/Database.php';
+require_once __DIR__ . '/lib/repositories/LiveSessionRepository.php';
 
 use StumpVision\Common;
+use StumpVision\Repositories\LiveSessionRepository;
 
 // Send security headers (SAMEORIGIN to allow embedding in iframes for live view)
 Common::sendSecurityHeaders('SAMEORIGIN');
@@ -21,21 +24,7 @@ if (!Config::isLiveScoreEnabled()) {
     Common::jsonResponse(false, null, 'live_score_disabled', 403);
 }
 
-$dataDir = __DIR__ . '/../data/live';
-
-// Ensure live data directory exists
-if (!Common::ensureDirectory($dataDir)) {
-    Common::jsonResponse(false, null, 'Cannot create live data directory', 500);
-}
-
-/**
- * Get file path for live match ID
- */
-function live_path_for(string $id): string
-{
-    global $dataDir;
-    return $dataDir . DIRECTORY_SEPARATOR . Common::sanitizeId($id) . '.json';
-}
+$repo = new LiveSessionRepository();
 
 // Check rate limit (120 requests per minute for live updates - higher than normal API)
 if (!Common::checkRateLimit(120, 'live_rate_limit')) {
@@ -64,19 +53,16 @@ try {
         $liveId = bin2hex(random_bytes(8));
 
         // Create live session
-        $liveSession = [
-            'live_id' => $liveId,
-            'match_id' => $in['match_id'],
-            'scheduled_match_id' => $in['scheduled_match_id'] ?? null,
-            'created_at' => time(),
-            'owner_session' => session_id(),
-            'active' => true,
-            'current_state' => null
-        ];
+        $success = $repo->create(
+            $liveId,
+            $in['match_id'],
+            session_id(),
+            [],  // Empty state initially
+            $in['scheduled_match_id'] ?? null
+        );
 
-        $f = live_path_for($liveId);
-        if (!Common::safeJsonWrite($f, $liveSession)) {
-            Common::jsonResponse(false, null, 'write_error');
+        if (!$success) {
+            Common::jsonResponse(false, null, 'create_failed');
         }
 
         Common::jsonResponse(true, ['live_id' => $liveId]);
@@ -97,29 +83,20 @@ try {
         }
 
         $liveId = Common::sanitizeId($in['live_id']);
-        $f = live_path_for($liveId);
 
-        $result = Common::safeJsonRead($f);
-        if (!$result['ok']) {
-            Common::jsonResponse(false, null, $result['error']);
-        }
-
-        $session = $result['data'];
-        if (!is_array($session)) {
-            Common::jsonResponse(false, null, 'invalid_session');
+        // Check if session exists
+        if (!$repo->exists($liveId)) {
+            Common::jsonResponse(false, null, 'session_not_found');
         }
 
         // Verify ownership
-        if ($session['owner_session'] !== session_id()) {
+        if (!$repo->isOwnedBySession($liveId, session_id())) {
             Common::jsonResponse(false, null, 'unauthorized', 403);
         }
 
         // Update state
-        $session['current_state'] = $in['state'];
-        $session['last_updated'] = time();
-
-        if (!Common::safeJsonWrite($f, $session)) {
-            Common::jsonResponse(false, null, 'write_error');
+        if ($repo->updateState($liveId, $in['state']) === 0) {
+            Common::jsonResponse(false, null, 'update_failed');
         }
 
         Common::jsonResponse(true);
@@ -134,16 +111,10 @@ try {
         }
 
         $safeId = Common::sanitizeId($liveId);
-        $f = live_path_for($safeId);
+        $session = $repo->findById($safeId);
 
-        $result = Common::safeJsonRead($f);
-        if (!$result['ok']) {
-            Common::jsonResponse(false, null, $result['error']);
-        }
-
-        $session = $result['data'];
-        if (!is_array($session)) {
-            Common::jsonResponse(false, null, 'invalid_session');
+        if (!$session) {
+            Common::jsonResponse(false, null, 'session_not_found');
         }
 
         if (!$session['active']) {
@@ -167,25 +138,21 @@ try {
         }
 
         $liveId = Common::sanitizeId($in['live_id']);
-        $f = live_path_for($liveId);
 
-        $result = Common::safeJsonRead($f);
-        if (!$result['ok']) {
-            Common::jsonResponse(false, null, $result['error']);
-        }
-
-        $session = $result['data'];
-        if (!is_array($session)) {
-            Common::jsonResponse(false, null, 'invalid_session');
+        // Check if session exists
+        if (!$repo->exists($liveId)) {
+            Common::jsonResponse(false, null, 'session_not_found');
         }
 
         // Verify ownership
-        if ($session['owner_session'] !== session_id()) {
+        if (!$repo->isOwnedBySession($liveId, session_id())) {
             Common::jsonResponse(false, null, 'unauthorized', 403);
         }
 
-        $session['active'] = false;
-        Common::safeJsonWrite($f, $session);
+        // Stop the session
+        if ($repo->stop($liveId) === 0) {
+            Common::jsonResponse(false, null, 'stop_failed');
+        }
 
         Common::jsonResponse(true);
     }
