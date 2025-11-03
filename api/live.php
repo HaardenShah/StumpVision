@@ -1,13 +1,13 @@
 <?php
 declare(strict_types=1);
-session_start();
 
 /**
  * StumpVision — api/live.php
  * Live score sharing API (Database version)
  */
 
-// Load configuration
+// Load session configuration and dependencies
+require_once __DIR__ . '/lib/SessionConfig.php';
 require_once __DIR__ . '/../admin/config-helper.php';
 require_once __DIR__ . '/lib/Common.php';
 require_once __DIR__ . '/lib/Database.php';
