@@ -580,7 +580,7 @@ Need help? Check:
 
 ## 📝 Changelog
 
-### v2.3 (Latest - November 2024)
+### v2.3 (Latest - November 2025)
 - 🔒 **CRITICAL SECURITY FIXES**:
   - Added CSRF protection to `api/scheduled-matches.php` (create, update, delete actions)
   - Added CSRF protection to `api/players.php` (add, update, delete actions)
@@ -616,7 +616,7 @@ Need help? Check:
 
 **Impact:** Closed 3 critical vulnerabilities, fixed 15+ bugs, improved code maintainability by 40%
 
-### v2.2 (November 2024)
+### v2.2 (November 2025)
 - ✨ **Live Score Sharing** - Real-time score viewer for spectators with auto-refresh
 - ✨ **Admin Panel** - Complete match and player management system
 - ✨ **Match Verification** - Mark matches as verified for official stats
