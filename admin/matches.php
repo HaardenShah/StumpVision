@@ -1,12 +1,15 @@
 <?php
 declare(strict_types=1);
 require_once 'auth.php';
+require_once __DIR__ . '/../api/lib/Database.php';
+require_once __DIR__ . '/../api/lib/repositories/MatchRepository.php';
+
+use StumpVision\Repositories\MatchRepository;
+
 requireAdmin();
 checkPasswordChangeRequired();
 
-use StumpVision\Common;
-
-$dataDir = __DIR__ . '/../data';
+$repo = new MatchRepository();
 $message = '';
 $messageType = '';
 
@@ -20,8 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['csrf_token'])) {
         $matchId = $_POST['match_id'] ?? '';
 
         if ($action === 'delete' && $matchId) {
-            $file = $dataDir . '/' . basename($matchId) . '.json';
-            if (is_file($file) && unlink($file)) {
+            if ($repo->delete($matchId) > 0) {
                 $message = 'Match deleted successfully';
                 $messageType = 'success';
             } else {
@@ -29,80 +31,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['csrf_token'])) {
                 $messageType = 'error';
             }
         } elseif ($action === 'verify' && $matchId) {
-            $file = $dataDir . '/' . basename($matchId) . '.json';
-            if (is_file($file)) {
-                $result = Common::safeJsonRead($file);
-                if ($result['ok'] && is_array($result['data'])) {
-                    $data = $result['data'];
-                    $data['__verified'] = true;
-                    $data['__verified_at'] = time();
-                    $data['__verified_by'] = $_SESSION['admin_username'];
-                    if (Common::safeJsonWrite($file, $data)) {
-                        $message = 'Match verified successfully';
-                        $messageType = 'success';
-                    } else {
-                        $message = 'Failed to verify match';
-                        $messageType = 'error';
-                    }
-                } else {
-                    $message = 'Failed to read match data';
-                    $messageType = 'error';
-                }
+            $username = $_SESSION['admin_username'] ?? 'admin';
+            if ($repo->verify($matchId, $username) > 0) {
+                $message = 'Match verified successfully';
+                $messageType = 'success';
+            } else {
+                $message = 'Failed to verify match';
+                $messageType = 'error';
             }
         } elseif ($action === 'unverify' && $matchId) {
-            $file = $dataDir . '/' . basename($matchId) . '.json';
-            if (is_file($file)) {
-                $result = Common::safeJsonRead($file);
-                if ($result['ok'] && is_array($result['data'])) {
-                    $data = $result['data'];
-                    unset($data['__verified'], $data['__verified_at'], $data['__verified_by']);
-                    if (Common::safeJsonWrite($file, $data)) {
-                        $message = 'Match unverified successfully';
-                        $messageType = 'success';
-                    } else {
-                        $message = 'Failed to unverify match';
-                        $messageType = 'error';
-                    }
-                } else {
-                    $message = 'Failed to read match data';
-                    $messageType = 'error';
-                }
+            if ($repo->unverify($matchId) > 0) {
+                $message = 'Match unverified successfully';
+                $messageType = 'success';
+            } else {
+                $message = 'Failed to unverify match';
+                $messageType = 'error';
             }
         }
     }
 }
 
 // Get all matches
+$matchList = $repo->getMatchesList(100, 0);
 $matches = [];
-$matchFiles = glob($dataDir . '/*.json') ?: [];
-usort($matchFiles, fn($a, $b) => filemtime($b) <=> filemtime($a));
 
-foreach ($matchFiles as $file) {
-    $id = basename($file, '.json');
-    $result = Common::safeJsonRead($file);
-    if ($result['ok'] && is_array($result['data'])) {
-        $matches[] = [
-            'id' => $id,
-            'data' => $result['data'],
-            'timestamp' => filemtime($file),
-            'verified' => $result['data']['__verified'] ?? false
-        ];
-    }
+foreach ($matchList as $match) {
+    $matches[] = [
+        'id' => $match['id'],
+        'title' => $match['title'],
+        'timestamp' => $match['created_at'],
+        'verified' => (bool) $match['verified']
+    ];
 }
 
 // View specific match
 $viewMatch = null;
 if (isset($_GET['view'])) {
     $viewId = basename($_GET['view']);
-    $viewFile = $dataDir . '/' . $viewId . '.json';
-    if (is_file($viewFile)) {
-        $result = Common::safeJsonRead($viewFile);
-        if ($result['ok'] && is_array($result['data'])) {
-            $viewMatch = [
-                'id' => $viewId,
-                'data' => $result['data']
-            ];
-        }
+    $matchData = $repo->findById($viewId);
+
+    if ($matchData) {
+        $viewMatch = [
+            'id' => $viewId,
+            'data' => [
+                'meta' => [
+                    'title' => $matchData['title'],
+                    'oversPerSide' => $matchData['overs_per_side'],
+                    'wicketsLimit' => $matchData['wickets_limit']
+                ],
+                'teams' => $matchData['teams'],
+                'innings' => $matchData['innings'],
+                '__verified' => $matchData['verified'],
+                '__verified_at' => $matchData['verified_at'],
+                '__verified_by' => $matchData['verified_by']
+            ]
+        ];
     }
 }
 ?>
@@ -227,7 +210,7 @@ if (isset($_GET['view'])) {
                                 <?php foreach ($matches as $match): ?>
                                     <tr>
                                         <td>
-                                            <strong><?php echo htmlspecialchars($match['data']['meta']['title'] ?? 'Unknown Match'); ?></strong><br>
+                                            <strong><?php echo htmlspecialchars($match['title']); ?></strong><br>
                                             <span style="font-size: 12px; color: var(--muted);">ID: <?php echo htmlspecialchars($match['id']); ?></span>
                                         </td>
                                         <td><?php echo date('M j, Y g:i A', $match['timestamp']); ?></td>

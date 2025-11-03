@@ -1,10 +1,15 @@
 <?php
 declare(strict_types=1);
 require_once 'auth.php';
+require_once __DIR__ . '/../api/lib/Database.php';
+require_once __DIR__ . '/../api/lib/repositories/LiveSessionRepository.php';
+
+use StumpVision\Repositories\LiveSessionRepository;
+
 requireAdmin();
 checkPasswordChangeRequired();
 
-$liveDir = __DIR__ . '/../data/live';
+$repo = new LiveSessionRepository();
 $message = '';
 $messageType = '';
 
@@ -18,41 +23,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['csrf_token'])) {
         $sessionId = $_POST['session_id'] ?? '';
 
         if ($action === 'stop' && $sessionId) {
-            $file = $liveDir . '/' . basename($sessionId) . '.json';
-            if (is_file($file)) {
-                $data = json_decode(file_get_contents($file), true);
-                $data['active'] = false;
-                $data['stopped_at'] = time();
-                $data['stopped_by'] = $_SESSION['admin_username'];
-                if (file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT))) {
-                    $message = 'Live session stopped successfully';
-                    $messageType = 'success';
-                }
+            $username = $_SESSION['admin_username'] ?? 'admin';
+            if ($repo->stop($sessionId, $username) > 0) {
+                $message = 'Live session stopped successfully';
+                $messageType = 'success';
+            } else {
+                $message = 'Failed to stop live session';
+                $messageType = 'error';
             }
         } elseif ($action === 'delete' && $sessionId) {
-            $file = $liveDir . '/' . basename($sessionId) . '.json';
-            if (is_file($file) && unlink($file)) {
+            if ($repo->delete($sessionId) > 0) {
                 $message = 'Live session deleted successfully';
                 $messageType = 'success';
+            } else {
+                $message = 'Failed to delete live session';
+                $messageType = 'error';
             }
         }
     }
 }
 
 // Get all live sessions
+$allSessions = $repo->findAll(false, 100, 0);
+
 $sessions = [];
-if (is_dir($liveDir)) {
-    $files = glob($liveDir . '/*.json') ?: [];
-    foreach ($files as $file) {
-        $data = json_decode(file_get_contents($file), true);
-        if ($data) {
-            $sessions[] = [
-                'id' => basename($file, '.json'),
-                'data' => $data,
-                'created' => $data['created_at'] ?? filemtime($file)
-            ];
-        }
-    }
+foreach ($allSessions as $session) {
+    $sessions[] = [
+        'id' => $session['live_id'],
+        'data' => [
+            'match_id' => $session['match_id'],
+            'active' => $session['active']
+        ],
+        'created' => $session['created_at']
+    ];
 }
 
 // Sort by creation time (newest first)
