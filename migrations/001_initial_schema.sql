@@ -113,6 +113,7 @@ CREATE TABLE IF NOT EXISTS live_sessions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_live_sessions_match_id ON live_sessions(match_id);
+CREATE INDEX IF NOT EXISTS idx_live_sessions_scheduled_match_id ON live_sessions(scheduled_match_id);
 CREATE INDEX IF NOT EXISTS idx_live_sessions_active ON live_sessions(active);
 CREATE INDEX IF NOT EXISTS idx_live_sessions_created_at ON live_sessions(created_at);
 
@@ -132,6 +133,6 @@ CREATE TABLE IF NOT EXISTS migrations (
     description TEXT
 );
 
--- Insert initial migration record
-INSERT INTO migrations (version, applied_at, description)
+-- Insert initial migration record (only if not exists)
+INSERT OR IGNORE INTO migrations (version, applied_at, description)
 VALUES ('001_initial_schema', strftime('%s', 'now'), 'Initial database schema creation');
