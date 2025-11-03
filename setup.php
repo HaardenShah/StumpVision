@@ -1,3 +1,10 @@
+<?php
+require_once __DIR__ . '/api/lib/InstallCheck.php';
+use StumpVision\InstallCheck;
+
+// Redirect to installer if not installed
+InstallCheck::requireInstalled();
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>

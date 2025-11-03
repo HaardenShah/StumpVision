@@ -19,19 +19,27 @@ use StumpVision\Repositories\LiveSessionRepository;
 // Send security headers (SAMEORIGIN to allow embedding in iframes for live view)
 Common::sendSecurityHeaders('SAMEORIGIN');
 
-// Check if live score sharing is enabled via admin settings
-if (!Config::isLiveScoreEnabled()) {
-    Common::jsonResponse(false, null, 'live_score_disabled', 403);
-}
-
 $repo = new LiveSessionRepository();
+$action = $_GET['action'] ?? '';
+
+// Check if live score sharing is enabled ONLY for public viewing
+// Allow create/update for state persistence even when public sharing is disabled
+if (!Config::isLiveScoreEnabled() && $action === 'get') {
+    // Only block public GET requests when live sharing is disabled
+    $liveId = $_GET['live_id'] ?? '';
+    $session = $repo->findById($liveId);
+
+    // Allow the owner to always access their own session
+    if (!$session || $session['owner_session'] !== session_id()) {
+        Common::jsonResponse(false, null, 'live_score_disabled', 403);
+    }
+}
 
 // Check rate limit (120 requests per minute for live updates - higher than normal API)
 if (!Common::checkRateLimit(120, 'live_rate_limit')) {
     Common::jsonResponse(false, null, 'rate_limit_exceeded', 429);
 }
 
-$action = $_GET['action'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 try {

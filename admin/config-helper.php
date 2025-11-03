@@ -156,10 +156,9 @@ class Config
         $username = self::get('admin_username', 'admin');
         $passwordHash = self::get('admin_password_hash', null);
 
-        // If no password hash exists, create default
+        // No default password - must be set during installation
         if ($passwordHash === null) {
-            $passwordHash = password_hash('changeme', PASSWORD_BCRYPT);
-            self::set('admin_password_hash', $passwordHash);
+            throw new \Exception('Admin credentials not configured. Please run the installer.');
         }
 
         return [
