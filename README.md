@@ -1,74 +1,65 @@
-# 🏏 StumpVision v2.3 — Cricket Scorer
+# StumpVision v2.3 — Cricket Scorer
 
 **StumpVision** is a lightweight, mobile-first web app for scoring cricket matches. Built with **PHP + vanilla JavaScript**, it works completely offline, installs as a PWA, and provides **real-time live score sharing** for spectators.
 
-Perfect for pickup cricket, club matches, and growing your cricket community! 🌟
+Perfect for pickup cricket, club matches, and growing your cricket community!
 
-**Latest Update (v2.3):** Major security improvements, bug fixes, and code consolidation. All critical vulnerabilities patched! 🔒
+**Latest Update (v2.3):** Major security improvements, bug fixes, and code consolidation. All critical vulnerabilities patched.
 
 ---
 
-## ⚡ Features
+## Features
 
 ### Core Scoring
-✅ **Simple scoring pad** - Record runs, boundaries, wickets, extras with one tap
-✅ **Wicket type tracking** - Record dismissal type (bowled, caught, LBW, stumped, run out, hit wicket)
-✅ **Smart run-out logic** - Track runs completed and which batsman got out
-✅ **Smart cricket logic** - No-balls trigger free hits, auto-advance overs after 6 legal balls
-✅ **Extras tracking** - NB, WD, Byes, Leg Byes tracked separately with proper wide ball handling
-✅ **Comprehensive stats** - Strike rates, economy rates, balls faced, overs bowled, dot balls, maidens
-✅ **Ball-by-ball tracking** - Complete delivery history with undo support
-✅ **Target tracker** - Real-time chase calculations in 2nd innings
-✅ **Partnership tracking** - Monitor current and historical partnerships with runs and balls
-✅ **Fall of wickets** - Track when and how each wicket fell
-✅ **Milestones** - Automatic detection of 50s, 100s, 150s, 200s
+- Simple scoring pad - Record runs, boundaries, wickets, extras with one tap
+- Wicket type tracking (bowled, caught, LBW, stumped, run out, hit wicket)
+- Smart run-out logic with runs completed and batsman selection
+- Smart cricket logic - No-balls trigger free hits, auto-advance overs after 6 legal balls
+- Extras tracking - NB, WD, Byes, Leg Byes tracked separately
+- Comprehensive stats - Strike rates, economy rates, balls faced, overs bowled, dot balls, maidens
+- Ball-by-ball tracking with undo support
+- Target tracker for 2nd innings chase calculations
+- Partnership tracking (current and historical)
+- Fall of wickets timeline
+- Automatic milestone detection (50s, 100s, 150s, 200s)
 
 ### Match Management
-✅ **Auto-save on first ball** - Generates unique match ID and saves automatically
-✅ **Auto-save per over** - Match data saved every 6 balls with throttling
-✅ **Mid-innings player management** - Add, remove, or retire players during the match
-✅ **Dynamic match settings** - Adjust overs and wickets limit on the fly
-✅ **Retire/unretire batsmen** - Players can retire and return later with stats intact
-✅ **Player stats retention** - Retired players keep their scores when they return
-✅ **Match completion redirect** - Automatic redirect to summary page when match ends
+- Auto-save on first ball (generates unique match ID)
+- Auto-save per over (every 6 balls)
+- Mid-innings player management (add, remove, retire players)
+- Dynamic match settings (adjust overs and wickets on the fly)
+- Retire/unretire batsmen with stats retention
+- Automatic redirect to summary page when match ends
 
 ### Live Score Sharing
-✅ **Live score broadcast** - Share real-time scores with spectators via unique URL
-✅ **Beautiful live viewer** - Gradient score cards with live badge animation
-✅ **Auto-refresh** - Updates every 5 seconds for spectators
-✅ **Full statistics display** - Batting, bowling, partnerships visible to viewers
-✅ **Mobile optimized** - Clean, responsive layout for spectators
-✅ **Session management** - Start/stop live sharing from scoring interface
+- Share real-time scores with spectators via unique URL
+- Beautiful gradient score cards with live badge animation
+- Auto-refresh every 5 seconds for spectators
+- Full statistics display (batting, bowling, partnerships)
+- Mobile-optimized viewer layout
+- Start/stop live sharing from scoring interface
 
 ### Admin Panel
-✅ **Password-protected dashboard** - Secure admin access with session management
-✅ **Match management** - View, verify, and delete saved matches
-✅ **Match verification** - Mark matches as verified for stats counting
-✅ **Player database** - Track all players across matches
-✅ **Statistics overview** - Total matches, players, verified matches
-✅ **Live session monitoring** - View and manage active live score sessions
-✅ **Settings management** - Configure admin password and system settings
-
-### Match Setup
-✅ **Toss configuration** - Select who won toss and batting/bowling choice
-✅ **Opening players** - Choose opening batsmen and bowler
-✅ **Team rosters** - Add players dynamically with instant validation
-✅ **Match settings** - Overs per innings, wickets limit, match format
+- Password-protected dashboard with session management
+- Match management (view, verify, delete matches)
+- Player database and statistics tracking
+- Live session monitoring
+- System settings configuration
 
 ### Mobile Experience
-✅ **Sunlight-optimized UI** - High contrast white text on dark buttons for outdoor visibility
-✅ **Auto dark mode** - Respects system preference
-✅ **Haptic feedback** - Vibration on scoring actions
-✅ **Touch-optimized** - Large buttons (48px+ tap targets)
-✅ **PWA installable** - Add to home screen, works like native app
-✅ **Offline-first** - Score matches without internet
-✅ **Smart UI** - Scoring dock hidden on Stats/Settings for full content visibility
-✅ **Fullscreen mode** - True fullscreen on mobile devices
-✅ **Plain text output** - No Unicode characters for maximum compatibility  
+- Sunlight-optimized UI (high contrast for outdoor visibility)
+- Auto dark mode (respects system preference)
+- Haptic feedback on scoring actions
+- Touch-optimized with large tap targets (48px+)
+- PWA installable (add to home screen)
+- Offline-first (score without internet)
+- Smart UI (scoring dock hidden on Stats/Settings tabs)
+- True fullscreen mode
+- Plain text output (no Unicode)  
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
@@ -122,7 +113,7 @@ See `/migrations/README.md` for detailed migration instructions.
 
 ---
 
-## 🎮 How to Use
+## How to Use
 
 ### 1. Setup Match
 1. Go to `setup.php`
@@ -177,7 +168,7 @@ See `/migrations/README.md` for detailed migration instructions.
 
 ---
 
-## 🎯 Scoring Rules
+## Scoring Rules
 
 | Event          | Behavior                                                    |
 |----------------|-------------------------------------------------------------|
@@ -202,7 +193,7 @@ See `/migrations/README.md` for detailed migration instructions.
 
 ---
 
-## 📊 Enhanced Statistics
+## Enhanced Statistics
 
 ### Match Summary
 - Current score and run rate
@@ -237,7 +228,7 @@ See `/migrations/README.md` for detailed migration instructions.
 
 ---
 
-## 🏗️ Technical Details
+## Technical Details
 
 ### Stack
 - **Frontend**: Vanilla JavaScript (ES6+), HTML5, CSS3
@@ -327,7 +318,7 @@ Configuration (Secure):
 
 ---
 
-## 🔧 Customization
+## Customization
 
 ### Colors
 Edit CSS variables in `index.php` and `setup.php`:
@@ -348,7 +339,7 @@ Customize in `api/lib/CardRenderer.php`:
 
 ---
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### "Save failed" / Matches not persisting
 **Problem**: Matches disappear after creation, not visible in admin panel
@@ -428,20 +419,20 @@ sudo chmod 755 /path/to/stumpvision/data/live/
 
 ---
 
-## 🔐 Security
+## Security
 
 The app implements comprehensive security measures:
 
-- ✅ **CSRF Protection** - Token validation on ALL mutation endpoints (v2.3: added to players & scheduled-matches APIs)
-- ✅ **Rate Limiting** - 60 requests/minute per IP (120/min for live updates)
-- ✅ **Input Sanitization** - ID validation and path traversal prevention
-- ✅ **Password Hashing** - bcrypt for admin authentication
-- ✅ **Session Management** - PHP sessions for admin access control
-- ✅ **File-based Storage** - No SQL injection risk
-- ✅ **Security Headers** - Standardized across all API responses (v2.3)
-- ✅ **File Locking** - Prevents data corruption during concurrent writes (v2.3)
-- ✅ **Error Handling** - All file operations have proper error checking (v2.3)
-- ✅ **Code Consolidation** - Shared security library prevents inconsistencies (v2.3)
+- **CSRF Protection** - Token validation on ALL mutation endpoints (v2.3: added to players & scheduled-matches APIs)
+- **Rate Limiting** - 60 requests/minute per IP (120/min for live updates)
+- **Input Sanitization** - ID validation and path traversal prevention
+- **Password Hashing** - bcrypt for admin authentication
+- **Session Management** - PHP sessions for admin access control
+- **File-based Storage** - No SQL injection risk
+- **Security Headers** - Standardized across all API responses (v2.3)
+- **File Locking** - Prevents data corruption during concurrent writes (v2.3)
+- **Error Handling** - All file operations have proper error checking (v2.3)
+- **Code Consolidation** - Shared security library prevents inconsistencies (v2.3)
 
 ### Protecting the `/data/` Directory
 
@@ -520,7 +511,7 @@ If you can't configure the web server:
 
 ---
 
-## 🏏 Perfect For
+## Perfect For
 
 - **Cricket clubs** - Track all matches with admin panel and player stats
 - **Pickup matches** - Easy setup, score, and share with live viewer
@@ -531,19 +522,19 @@ If you can't configure the web server:
 - **Flexible team sizes** - Manage players dynamically
 - **Match archives** - All matches saved with verification system
 
-**Share live scores, build your cricket community!** 🚀📱
+**Share live scores, build your cricket community!**
 
 ---
 
-## 📄 License
+## License
 
 Open source - use it, modify it, share it! 
 
-Built with ❤️ for the cricket community.
+Built with love for the cricket community.
 
 ---
 
-## 👨‍💻 Credits
+## Credits
 
 **Built by Haarden Shah**
 
@@ -567,7 +558,7 @@ Designed for pickup cricket players who want:
 
 ---
 
-## 🆘 Support
+## Support
 
 Need help? Check:
 1. `DEPLOYMENT.md` - Detailed setup guide
@@ -578,72 +569,51 @@ Need help? Check:
 
 ---
 
-## 📝 Changelog
+## Changelog
 
 ### v2.3 (Latest - November 2025)
-- 🔒 **CRITICAL SECURITY FIXES**:
-  - Added CSRF protection to `api/scheduled-matches.php` (create, update, delete actions)
-  - Added CSRF protection to `api/players.php` (add, update, delete actions)
-  - Fixed 15+ instances of unchecked file operations that could cause silent failures
-  - Removed production debug logging that was polluting error logs
-- ⚡ **MAJOR CODE CONSOLIDATION**:
-  - Created `api/lib/Common.php` - shared utility library (268 lines)
-  - Eliminated 4 major code duplications (isAdmin, sanitizeId, rate limiting, CSRF)
-  - Reduced codebase by ~100 lines through consolidation
-  - Standardized all API responses with `Common::jsonResponse()`
-- 🛡️ **RELIABILITY IMPROVEMENTS**:
-  - Added file locking (`flock()`) to prevent data corruption during concurrent writes
-  - Implemented safe file read/write helpers with comprehensive error handling
-  - Removed error suppression (@) operators - replaced with proper error logging
-  - Standardized security headers across all API endpoints
-- 🏗️ **NEW SHARED LIBRARY FUNCTIONS**:
-  - `Common::sanitizeId()` - Safe ID sanitization
-  - `Common::getCsrfToken()` / `validateCsrfToken()` - Unified CSRF protection
-  - `Common::checkRateLimit()` - Parameterized rate limiting
-  - `Common::safeFileRead()` / `safeJsonRead()` - Safe file operations
-  - `Common::safeFileWrite()` / `safeJsonWrite()` - Safe writes with locking
-  - `Common::ensureDirectory()` - Directory creation with error handling
-  - `Common::sendSecurityHeaders()` - Standardized security headers
-  - `Common::jsonResponse()` - Consistent API response format
-- 🐛 **BUG FIXES**:
-  - Fixed race conditions in file write operations
-  - Fixed missing error handling in admin panel file operations
-  - Removed TODO comment from summary.php (implemented redirect to admin panel)
-  - Fixed inconsistent security headers between API endpoints
-- 📚 **DOCUMENTATION**:
-  - Updated README with v2.3 changes and new architecture
-  - Added detailed commit message documenting all fixes
+**CRITICAL SECURITY FIXES:**
+- Added CSRF protection to `api/scheduled-matches.php` and `api/players.php`
+- Fixed 15+ instances of unchecked file operations
+- Removed production debug logging
+
+**MAJOR CODE CONSOLIDATION:**
+- Created `api/lib/Common.php` - shared utility library (268 lines)
+- Eliminated 4 major code duplications (isAdmin, sanitizeId, rate limiting, CSRF)
+- Reduced codebase by ~100 lines
+- Standardized all API responses
+
+**RELIABILITY IMPROVEMENTS:**
+- Added file locking (`flock()`) to prevent data corruption
+- Implemented safe file read/write helpers with comprehensive error handling
+- Removed error suppression (@) operators
+- Standardized security headers across all API endpoints
 
 **Impact:** Closed 3 critical vulnerabilities, fixed 15+ bugs, improved code maintainability by 40%
 
 ### v2.2 (November 2025)
-- ✨ **Live Score Sharing** - Real-time score viewer for spectators with auto-refresh
-- ✨ **Admin Panel** - Complete match and player management system
-- ✨ **Match Verification** - Mark matches as verified for official stats
-- ✨ **Auto-save System** - Saves on first ball, then every over
-- ✨ **Player Database** - Track player statistics across all matches
-- ✨ **Live Session Monitoring** - Admin view of active live sessions
-- 🐛 **Fixed match persistence** - Corrected data directory permissions
-- 🐛 **Fixed match completion** - Automatic redirect to summary page
-- 🐛 **Fixed Unicode display** - Replaced all Unicode with plain text
-- 🐛 **Fixed last wicket update** - Proper handling of final wicket
-- 🔒 **CRITICAL SECURITY FIX** - Moved config with password hash to separate directory with 600 permissions
-- 🔒 **Enhanced Security** - CSRF protection, rate limiting, session management, secure file permissions
-- 🔒 **Permission Hardening** - Replaced 777 with proper ownership-based security (755 data, 750 config)
-- 📱 **Improved mobile UX** - Better live viewer layout
+- Live Score Sharing with real-time viewer and auto-refresh
+- Admin Panel with match and player management
+- Match Verification system
+- Auto-save on first ball, then every over
+- Player Database tracking stats across matches
+- Live Session Monitoring
+- Fixed match persistence and completion
+- CRITICAL SECURITY FIX: Moved config to separate directory with 600 permissions
+- Enhanced Security: CSRF protection, rate limiting, session management
+- Permission Hardening: Replaced 777 with proper ownership-based security
 
 ### v2.1
-- ✨ Added wicket type tracking (6 dismissal types)
-- ✨ Smart run-out logic with runs and batsman selection
-- ✨ Mid-innings player management (add/remove/retire)
-- ✨ Dynamic overs and wickets adjustment
-- ✨ Comprehensive stats: partnerships, fall of wickets, milestones
-- ✨ Bowling analytics: dot balls and maidens tracking
-- 🎨 Improved sunlight visibility with white text on modals
-- 🎨 Smart UI: scoring dock hidden on Stats/Settings tabs
-- 🐛 Fixed wide ball logic (1 wide + additional runs)
-- 🐛 Fixed free hit + run out interaction
-- 📱 True fullscreen mobile support
+- Wicket type tracking (6 dismissal types)
+- Smart run-out logic
+- Mid-innings player management (add/remove/retire)
+- Dynamic overs and wickets adjustment
+- Comprehensive stats: partnerships, fall of wickets, milestones
+- Bowling analytics: dot balls and maidens
+- Improved sunlight visibility
+- Smart UI: scoring dock hidden on Stats/Settings tabs
+- Fixed wide ball logic and free hit interactions
+- True fullscreen mobile support
 
 ### v2.0
 - Initial release with core scoring features
@@ -652,4 +622,4 @@ Need help? Check:
 
 ---
 
-*StumpVision v2.3 - Score fast. Share live. Play cricket. Now more secure and reliable!* 🏏🔒
+*StumpVision v2.3 - Score fast. Share live. Play cricket. Now more secure and reliable!*
