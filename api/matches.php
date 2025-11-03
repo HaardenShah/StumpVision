@@ -4,12 +4,15 @@ session_start();
 
 /**
  * StumpVision — api/matches.php
- * JSON CRUD for match data with enhanced security
+ * Match data CRUD API (Database version)
  */
 
 require_once __DIR__ . '/lib/Common.php';
+require_once __DIR__ . '/lib/Database.php';
+require_once __DIR__ . '/lib/repositories/MatchRepository.php';
 
 use StumpVision\Common;
+use StumpVision\Repositories\MatchRepository;
 
 // Check PHP version
 if (version_compare(PHP_VERSION, '7.4.0', '<')) {
@@ -19,26 +22,7 @@ if (version_compare(PHP_VERSION, '7.4.0', '<')) {
 // Send security headers
 Common::sendSecurityHeaders('DENY');
 
-$dataDir = __DIR__ . '/../data';
-
-// Ensure data directory exists
-if (!Common::ensureDirectory($dataDir)) {
-    Common::jsonResponse(false, null, 'Cannot create data directory', 500);
-}
-
-// Check write permissions
-if (!is_writable($dataDir)) {
-    Common::jsonResponse(false, null, 'Data directory not writable', 500);
-}
-
-/**
- * Get file path for match ID
- */
-function path_for(string $id): string
-{
-    global $dataDir;
-    return $dataDir . DIRECTORY_SEPARATOR . Common::sanitizeId($id) . '.json';
-}
+$repo = new MatchRepository();
 
 /**
  * Validate match payload structure
@@ -75,36 +59,12 @@ try {
 
     // LIST: Get all saved matches
     if ($action === 'list' && $method === 'GET') {
-        $items = [];
-        $files = glob($dataDir . DIRECTORY_SEPARATOR . '*.json');
-
-        if ($files === false) {
-            Common::jsonResponse(true, ['items' => []]);
-        }
-
-        foreach ($files as $f) {
-            $id = basename($f, '.json');
-            $result = Common::safeJsonRead($f);
-
-            if (!$result['ok'] || !is_array($result['data'])) {
-                continue;
-            }
-
-            $j = $result['data'];
-            $title = $j['meta']['title'] ??
-                    (($j['teams'][0]['name'] ?? 'Team A') . ' vs ' . ($j['teams'][1]['name'] ?? 'Team B'));
-
-            $items[] = [
-                'id' => $id,
-                'ts' => filemtime($f),
-                'title' => $title
-            ];
-        }
+        $matches = $repo->getAllInListFormat(100, 0);
 
         // Sort by timestamp descending (newest first)
-        usort($items, fn($a, $b) => $b['ts'] <=> $a['ts']);
+        usort($matches, fn($a, $b) => ($b['ts'] ?? 0) <=> ($a['ts'] ?? 0));
 
-        Common::jsonResponse(true, ['items' => $items]);
+        Common::jsonResponse(true, ['items' => $matches]);
     }
 
     // LOAD: Get specific match
@@ -120,18 +80,13 @@ try {
             Common::jsonResponse(false, null, 'invalid_id');
         }
 
-        $f = path_for($safeId);
-        $result = Common::safeJsonRead($f);
+        $matchData = $repo->getInFileFormat($safeId);
 
-        if (!$result['ok']) {
-            Common::jsonResponse(false, null, $result['error']);
+        if (!$matchData) {
+            Common::jsonResponse(false, null, 'not_found');
         }
 
-        if (!is_array($result['data'])) {
-            Common::jsonResponse(false, null, 'invalid_json');
-        }
-
-        Common::jsonResponse(true, ['payload' => $result['data']]);
+        Common::jsonResponse(true, ['payload' => $matchData]);
     }
 
     // SAVE: Create or update match
@@ -171,15 +126,13 @@ try {
             $id = bin2hex(random_bytes(8));
         }
 
-        $f = path_for($id);
-
-        // Add metadata
+        // Add metadata to payload
         $payload['__saved_at'] = time();
-        $payload['__version'] = '2.2';
+        $payload['__version'] = '2.3';
 
-        // Write to file with locking
-        if (!Common::safeJsonWrite($f, $payload)) {
-            Common::jsonResponse(false, null, 'write_error');
+        // Save to database
+        if (!$repo->save($id, $payload)) {
+            Common::jsonResponse(false, null, 'save_failed');
         }
 
         Common::jsonResponse(true, ['id' => $id]);
@@ -216,14 +169,12 @@ try {
             Common::jsonResponse(false, null, 'invalid_id');
         }
 
-        $f = path_for($safeId);
-
-        if (!is_file($f)) {
+        if (!$repo->exists($safeId)) {
             Common::jsonResponse(false, null, 'not_found');
         }
 
-        if (!unlink($f)) {
-            Common::jsonResponse(false, null, 'delete_error');
+        if ($repo->delete($safeId) === 0) {
+            Common::jsonResponse(false, null, 'delete_failed');
         }
 
         Common::jsonResponse(true);
