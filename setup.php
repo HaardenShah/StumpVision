@@ -277,16 +277,32 @@ InstallCheck::requireInstalled();
       flex-wrap: wrap;
       gap: 8px;
       margin-top: 8px;
-      min-height: 40px;
+      min-height: 60px;
       padding: 12px;
-      border: 2px dashed transparent;
+      border: 2px dashed var(--line);
       border-radius: 12px;
       transition: all 0.2s;
+      background: var(--bg);
+      position: relative;
+    }
+
+    .player-tags:empty::before {
+      content: 'Drag players here or add them using the form above';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+      pointer-events: none;
+      width: 90%;
     }
 
     .player-tags.drag-over {
       border-color: var(--accent);
       background: var(--accent-light);
+      border-style: solid;
     }
 
     .player-tag {
@@ -710,6 +726,27 @@ InstallCheck::requireInstalled();
       border-radius: 12px;
       min-height: 60px;
       margin-bottom: 16px;
+      position: relative;
+      transition: all 0.2s;
+    }
+
+    .unassigned-players:empty::before {
+      content: 'Players from scheduled match will appear here';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+      pointer-events: none;
+      width: 90%;
+    }
+
+    .unassigned-players.drag-over {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      border-style: solid;
     }
 
     .player-chip {
