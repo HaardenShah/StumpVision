@@ -6,17 +6,31 @@ declare(strict_types=1);
  * Match data CRUD API (Database version)
  */
 
+require_once __DIR__ . '/lib/InstallCheck.php';
 require_once __DIR__ . '/lib/SessionConfig.php';
 require_once __DIR__ . '/lib/Common.php';
 require_once __DIR__ . '/lib/Database.php';
 require_once __DIR__ . '/lib/repositories/MatchRepository.php';
 
+use StumpVision\InstallCheck;
 use StumpVision\Common;
 use StumpVision\Repositories\MatchRepository;
 
 // Check PHP version
 if (version_compare(PHP_VERSION, '7.4.0', '<')) {
     Common::jsonResponse(false, null, 'PHP 7.4+ required', 500);
+}
+
+// Check if installed - return error if not
+if (!InstallCheck::isInstalled()) {
+    http_response_code(503);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'ok' => false,
+        'error' => 'not_installed',
+        'message' => 'StumpVision is not installed. Please complete the installation first.'
+    ]);
+    exit;
 }
 
 // Send security headers

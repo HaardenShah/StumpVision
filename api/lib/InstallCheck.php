@@ -22,17 +22,42 @@ class InstallCheck
             return false;
         }
 
+        // Verify config is valid JSON with required fields
+        try {
+            $configContent = @file_get_contents($configPath);
+            if ($configContent === false) {
+                return false;
+            }
+
+            $config = json_decode($configContent, true);
+            if (!is_array($config)) {
+                return false;
+            }
+
+            // Config must have admin credentials and installed flag
+            if (!isset($config['admin_username']) || !isset($config['admin_password_hash']) || empty($config['installed'])) {
+                return false;
+            }
+        } catch (\Exception $e) {
+            return false;
+        }
+
         // Verify database has required tables (not just an empty file)
         try {
             $pdo = new \PDO('sqlite:' . $dbPath);
             $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
 
-            // Check if migrations table exists and has at least one migration
-            $stmt = $pdo->query("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='migrations'");
-            $hasMigrationsTable = $stmt->fetchColumn() > 0;
+            // Critical tables that must exist for a valid installation
+            $requiredTables = ['migrations', 'players', 'matches', 'scheduled_matches', 'live_sessions'];
 
-            if (!$hasMigrationsTable) {
-                return false;
+            foreach ($requiredTables as $table) {
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?");
+                $stmt->execute([$table]);
+                $exists = $stmt->fetchColumn() > 0;
+
+                if (!$exists) {
+                    return false;
+                }
             }
 
             // Check if we have at least one migration record
