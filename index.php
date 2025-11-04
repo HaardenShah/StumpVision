@@ -1445,9 +1445,24 @@
 
         const bowlerSelect = document.getElementById('newBowlerSelect');
         const bowlingPlayers = matchState.setup[matchState.bowlingTeam].players;
+        const maxOversPerBowler = Math.ceil(matchState.setup.oversPerInnings / 5);
+
         bowlerSelect.innerHTML = bowlingPlayers
           .map(p => typeof p === 'string' ? p : p.name)
-          .map(playerName => `<option value="${playerName}">${playerName}</option>`)
+          .map(playerName => {
+            // Check if bowler has reached max overs
+            const bowlerStats = matchState.bowlers[playerName] || { balls: 0 };
+            const bowlerOvers = Math.floor(bowlerStats.balls / 6);
+            const bowlerBalls = bowlerStats.balls % 6;
+            const completedOvers = bowlerBalls === 0 ? bowlerOvers : bowlerOvers + 1;
+            const isMaxedOut = completedOvers >= maxOversPerBowler;
+
+            const oversInfo = bowlerStats.balls > 0 ? ` (${bowlerOvers}.${bowlerBalls} overs)` : '';
+            const disabled = isMaxedOut ? ' disabled' : '';
+            const maxLabel = isMaxedOut ? ' [Max overs reached]' : '';
+
+            return `<option value="${playerName}"${disabled}>${playerName}${oversInfo}${maxLabel}</option>`;
+          })
           .join('');
         document.getElementById('newOverModal').classList.add('active');
         document.getElementById('newOverModal').setAttribute('data-mode', 'second-innings');
@@ -1525,10 +1540,33 @@
     function showNewOverModal() {
       const select = document.getElementById('newBowlerSelect');
       const bowlingPlayers = matchState.setup[matchState.bowlingTeam].players;
+
+      // Calculate max overs per bowler (20% of total overs, rounded up)
+      const maxOversPerBowler = Math.ceil(matchState.setup.oversPerInnings / 5);
+
       select.innerHTML = bowlingPlayers
-        .filter(p => p !== matchState.bowler)
-        .map(p => `<option value="${p}">${p}</option>`)
+        .map(p => {
+          // Handle both string and object format
+          const playerName = typeof p === 'string' ? p : p.name;
+          return { name: playerName, player: p };
+        })
+        .filter(({ name }) => name !== matchState.bowler)
+        .map(({ name }) => {
+          // Check if bowler has reached max overs
+          const bowlerStats = matchState.bowlers[name] || { balls: 0 };
+          const bowlerOvers = Math.floor(bowlerStats.balls / 6);
+          const bowlerBalls = bowlerStats.balls % 6;
+          const completedOvers = bowlerBalls === 0 ? bowlerOvers : bowlerOvers + 1;
+          const isMaxedOut = completedOvers >= maxOversPerBowler;
+
+          const oversInfo = bowlerStats.balls > 0 ? ` (${bowlerOvers}.${bowlerBalls} overs)` : '';
+          const disabled = isMaxedOut ? ' disabled' : '';
+          const maxLabel = isMaxedOut ? ' [Max overs reached]' : '';
+
+          return `<option value="${name}"${disabled}>${name}${oversInfo}${maxLabel}</option>`;
+        })
         .join('');
+
       document.getElementById('newOverModal').classList.add('active');
       document.getElementById('newOverModal').removeAttribute('data-mode');
     }

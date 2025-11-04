@@ -27,6 +27,7 @@ InstallCheck::requireInstalled();
       --accent: #0ea5e9;
       --accent-light: #e0f2fe;
       --danger: #dc2626;
+      --success: #16a34a;
       --shadow: rgba(15, 23, 42, 0.1);
     }
 
@@ -41,6 +42,145 @@ InstallCheck::requireInstalled();
         --accent-light: #164e63;
         --shadow: rgba(0, 0, 0, 0.3);
       }
+    }
+
+    /* Wizard Step Management */
+    .wizard-step {
+      display: none;
+    }
+
+    .wizard-step.active {
+      display: block;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Progress Indicator */
+    .progress-indicator {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding: 0 20px;
+      position: relative;
+    }
+
+    .progress-indicator::before {
+      content: '';
+      position: absolute;
+      top: 15px;
+      left: 40px;
+      right: 40px;
+      height: 3px;
+      background: var(--line);
+      z-index: 0;
+    }
+
+    .progress-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      position: relative;
+      z-index: 1;
+      flex: 1;
+    }
+
+    .progress-step-circle {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--card);
+      border: 3px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      transition: all 0.3s;
+    }
+
+    .progress-step.completed .progress-step-circle {
+      background: var(--success);
+      border-color: var(--success);
+      color: white;
+    }
+
+    .progress-step.active .progress-step-circle {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+      transform: scale(1.2);
+    }
+
+    .progress-step-label {
+      font-size: 10px;
+      color: var(--muted);
+      text-align: center;
+      font-weight: 600;
+      max-width: 80px;
+    }
+
+    .progress-step.active .progress-step-label {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* Wizard Navigation */
+    .wizard-nav {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .wizard-nav button {
+      flex: 1;
+      padding: 14px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+
+    .wizard-nav .btn-prev {
+      background: var(--card);
+      color: var(--ink);
+      border: 2px solid var(--line);
+    }
+
+    .wizard-nav .btn-prev:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .wizard-nav .btn-next {
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+    }
+
+    .wizard-nav .btn-next:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(14, 165, 233, 0.4);
+    }
+
+    .wizard-nav button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
     }
 
     * {
@@ -137,7 +277,32 @@ InstallCheck::requireInstalled();
       flex-wrap: wrap;
       gap: 8px;
       margin-top: 8px;
-      min-height: 40px;
+      min-height: 60px;
+      padding: 12px;
+      border: 2px dashed var(--line);
+      border-radius: 12px;
+      transition: all 0.2s;
+      background: var(--bg);
+      position: relative;
+    }
+
+    .player-tags:empty::before {
+      content: 'Drag players here or add them using the form above';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+      pointer-events: none;
+      width: 90%;
+    }
+
+    .player-tags.drag-over {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      border-style: solid;
     }
 
     .player-tag {
@@ -152,6 +317,109 @@ InstallCheck::requireInstalled();
       align-items: center;
       gap: 8px;
       animation: fadeIn 0.2s;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .player-tag:hover {
+      transform: scale(1.05);
+      box-shadow: 0 2px 8px var(--shadow);
+    }
+
+    .player-tag.dragging {
+      opacity: 0.4;
+      transform: scale(0.95);
+    }
+
+    .player-tag.selected {
+      background: var(--accent);
+      color: white;
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px var(--shadow);
+    }
+
+    .player-tag.selected .verified-badge {
+      background: rgba(255, 255, 255, 0.3);
+      color: white;
+    }
+
+    /* Player Action Menu */
+    .player-actions {
+      display: none;
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--card);
+      border: 3px solid var(--accent);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 8px 32px var(--shadow);
+      z-index: 1000;
+      min-width: 280px;
+      animation: slideUp 0.3s ease-out;
+    }
+
+    .player-actions.active {
+      display: block;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+    }
+
+    .player-actions-title {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 12px;
+      text-align: center;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .player-actions-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .player-action-btn {
+      padding: 12px 16px;
+      border: 2px solid var(--line);
+      border-radius: 12px;
+      background: var(--bg);
+      color: var(--ink);
+      font-weight: 600;
+      font-size: 15px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .player-action-btn:hover {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      transform: translateY(-2px);
+    }
+
+    .player-action-btn.danger {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    .player-action-btn.danger:hover {
+      background: #fee2e2;
+      border-color: var(--danger);
     }
 
     .player-tag.verified {
@@ -349,8 +617,8 @@ InstallCheck::requireInstalled();
     }
 
     .quick-add-title::before {
-      content: '⚡';
-      font-size: 16px;
+      content: '';
+      display: none;
     }
 
     .quick-add-input {
@@ -461,8 +729,8 @@ InstallCheck::requireInstalled();
     }
 
     .load-match-title::before {
-      content: '🎯';
-      font-size: 24px;
+      content: '';
+      display: none;
     }
 
     .load-match-subtitle {
@@ -548,6 +816,27 @@ InstallCheck::requireInstalled();
       border-radius: 12px;
       min-height: 60px;
       margin-bottom: 16px;
+      position: relative;
+      transition: all 0.2s;
+    }
+
+    .unassigned-players:empty::before {
+      content: 'Players from scheduled match will appear here';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+      pointer-events: none;
+      width: 90%;
+    }
+
+    .unassigned-players.drag-over {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      border-style: solid;
     }
 
     .player-chip {
@@ -558,7 +847,7 @@ InstallCheck::requireInstalled();
       border-radius: 999px;
       font-size: 14px;
       font-weight: 600;
-      cursor: move;
+      cursor: pointer;
       transition: all 0.2s;
       user-select: none;
     }
@@ -570,6 +859,14 @@ InstallCheck::requireInstalled();
 
     .player-chip.dragging {
       opacity: 0.5;
+    }
+
+    .player-chip.selected {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px var(--shadow);
     }
 
     .auto-assign-btn {
@@ -596,164 +893,253 @@ InstallCheck::requireInstalled();
   <div class="container">
     <div class="header">
       <h1>StumpVision</h1>
-      <p>Set up your match</p>
-      <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Tip: Enable vibration in your phone settings for haptic feedback</p>
+      <p>Match Setup Wizard</p>
+      <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Follow the steps to set up your match</p>
+    </div>
+
+    <!-- Progress Indicator -->
+    <div class="progress-indicator" id="progressIndicator">
+      <div class="progress-step" data-step="1">
+        <div class="progress-step-circle">1</div>
+        <div class="progress-step-label">Load</div>
+      </div>
+      <div class="progress-step" data-step="2">
+        <div class="progress-step-circle">2</div>
+        <div class="progress-step-label">Details</div>
+      </div>
+      <div class="progress-step" data-step="3">
+        <div class="progress-step-circle">3</div>
+        <div class="progress-step-label">Teams</div>
+      </div>
+      <div class="progress-step" data-step="4">
+        <div class="progress-step-circle">4</div>
+        <div class="progress-step-label">Toss</div>
+      </div>
+      <div class="progress-step" data-step="5">
+        <div class="progress-step-circle">5</div>
+        <div class="progress-step-label">Openers</div>
+      </div>
+      <div class="progress-step" data-step="6">
+        <div class="progress-step-circle">6</div>
+        <div class="progress-step-label">Start</div>
+      </div>
     </div>
 
     <div id="errorMsg" class="error" style="display: none;"></div>
 
-    <!-- Load Scheduled Match Section -->
-    <div class="load-match-section">
-      <div class="load-match-title">Load Scheduled Match</div>
-      <p class="load-match-subtitle">Enter the 6-digit Match ID to load a pre-scheduled match</p>
-      <input type="text" id="matchIdInput" class="match-id-input" placeholder="000000" maxlength="6" pattern="[0-9]{6}">
-      <button type="button" class="load-match-btn" id="loadMatchBtn">Load Match</button>
-      <div class="verification-status" id="loadMatchStatus"></div>
+    <!-- STEP 1: Load or Create Match -->
+    <div class="wizard-step" id="step1" data-step="1">
+      <div class="load-match-section">
+        <div class="load-match-title">Load Scheduled Match</div>
+        <p class="load-match-subtitle">Enter the 6-digit Match ID to load a pre-scheduled match</p>
+        <input type="text" id="matchIdInput" class="match-id-input" placeholder="000000" maxlength="6" pattern="[0-9]{6}">
+        <button type="button" class="load-match-btn" id="loadMatchBtn">Load Match</button>
+        <div class="verification-status" id="loadMatchStatus"></div>
+      </div>
+
+      <div class="divider"><span>OR CREATE NEW MATCH</span></div>
+
+      <div class="wizard-nav">
+        <button type="button" class="btn-next" onclick="nextStep()">Continue →</button>
+      </div>
     </div>
 
-    <div class="divider"><span>OR SET UP NEW MATCH</span></div>
-
-    <!-- Team Assignment Section (shown after loading match) -->
-    <div class="team-assignment-section" id="teamAssignmentSection">
+    <!-- STEP 2: Match Details -->
+    <div class="wizard-step" id="step2" data-step="2">
       <div class="card">
-        <div class="card-title">Assign Players to Teams</div>
-        <button type="button" class="auto-assign-btn" id="autoAssignBtn">⚡ Auto-Assign Teams Randomly</button>
-
+        <div class="card-title">Match Details</div>
         <div class="form-group">
-          <label>Unassigned Players (Drag to teams below)</label>
-          <div class="unassigned-players" id="unassignedPlayers"></div>
+          <label>Match Format</label>
+          <select id="matchFormat">
+            <option value="limited">Limited Overs</option>
+            <option value="test">Test Match</option>
+          </select>
         </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Match Details</div>
-      <div class="form-group">
-        <label>Match Format</label>
-        <select id="matchFormat">
-          <option value="limited">Limited Overs</option>
-          <option value="test">Test Match</option>
-        </select>
-      </div>
-      <div class="grid-2">
-        <div class="form-group">
-          <label>Overs per Innings</label>
-          <input type="number" id="oversPerInnings" value="20" min="1" max="50">
-        </div>
-        <div class="form-group">
-          <label>Wickets Limit</label>
-          <input type="number" id="wicketsLimit" value="10" min="1" max="11">
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Toss</div>
-      <div class="form-group">
-        <label>Who won the toss?</label>
-        <select id="tossWinner">
-          <option value="teamA">Team A</option>
-          <option value="teamB">Team B</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Elected to</label>
-        <select id="tossDecision">
-          <option value="bat">Bat First</option>
-          <option value="bowl">Bowl First</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Team A</div>
-      <div class="form-group">
-        <label>Team Name</label>
-        <input type="text" id="teamAName" placeholder="Enter team name" value="Team A">
-      </div>
-      <div class="form-group">
-        <label>Players</label>
-
-        <!-- Quick Add Section -->
-        <div class="quick-add-section">
-          <div class="quick-add-title">Quick Add by Code</div>
-          <input type="text" id="teamAQuickAdd" placeholder="JOSM-1234 JADO-5678 MIWI-9012" class="quick-add-input">
-          <div class="bulk-status" id="teamABulkStatus"></div>
-          <button type="button" class="quick-add-btn" id="teamAQuickAddBtn">Add Players</button>
-          <p class="quick-add-hint">Enter one or more player codes separated by spaces</p>
-        </div>
-
-        <div class="player-input-container">
-          <input type="text" id="teamAPlayerInput" placeholder="Player name" class="players-input">
-          <div class="code-input" id="teamACodeInput">
-            <input type="text" id="teamAPlayerCode" placeholder="Player code (optional, e.g. JOSM-1234)" maxlength="9">
+        <div class="grid-2">
+          <div class="form-group">
+            <label>Overs per Innings</label>
+            <input type="number" id="oversPerInnings" value="20" min="1" max="50">
           </div>
-          <div class="verification-status" id="teamAVerificationStatus"></div>
-          <button type="button" class="add-player-btn" id="teamAAddBtn">Add Player</button>
-        </div>
-        <div class="player-tags" id="teamAPlayers"></div>
-        <p class="hint">Or enter name and optionally add player code for verification</p>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Team B</div>
-      <div class="form-group">
-        <label>Team Name</label>
-        <input type="text" id="teamBName" placeholder="Enter team name" value="Team B">
-      </div>
-      <div class="form-group">
-        <label>Players</label>
-
-        <!-- Quick Add Section -->
-        <div class="quick-add-section">
-          <div class="quick-add-title">Quick Add by Code</div>
-          <input type="text" id="teamBQuickAdd" placeholder="JOSM-1234 JADO-5678 MIWI-9012" class="quick-add-input">
-          <div class="bulk-status" id="teamBBulkStatus"></div>
-          <button type="button" class="quick-add-btn" id="teamBQuickAddBtn">Add Players</button>
-          <p class="quick-add-hint">Enter one or more player codes separated by spaces</p>
-        </div>
-
-        <div class="player-input-container">
-          <input type="text" id="teamBPlayerInput" placeholder="Player name" class="players-input">
-          <div class="code-input" id="teamBCodeInput">
-            <input type="text" id="teamBPlayerCode" placeholder="Player code (optional, e.g. JOSM-1234)" maxlength="9">
+          <div class="form-group">
+            <label>Wickets Limit</label>
+            <input type="number" id="wicketsLimit" value="10" min="1" max="11">
           </div>
-          <div class="verification-status" id="teamBVerificationStatus"></div>
-          <button type="button" class="add-player-btn" id="teamBAddBtn">Add Player</button>
         </div>
-        <div class="player-tags" id="teamBPlayers"></div>
-        <p class="hint">Or enter name and optionally add player code for verification</p>
+      </div>
+
+      <div class="wizard-nav">
+        <button type="button" class="btn-prev" onclick="prevStep()">← Back</button>
+        <button type="button" class="btn-next" onclick="nextStep()">Continue →</button>
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-title">Opening Players</div>
-      <div class="form-group">
-        <label>Opening Batsman 1</label>
-        <select id="openingBat1">
-          <option value="">Select player...</option>
-        </select>
+    <!-- STEP 3: Team Configuration -->
+    <div class="wizard-step" id="step3" data-step="3">
+      <!-- Team Assignment Section (shown after loading match with unassigned players) -->
+      <div class="team-assignment-section" id="teamAssignmentSection">
+        <div class="card">
+          <div class="card-title">Assign Players to Teams</div>
+          <button type="button" class="auto-assign-btn" id="autoAssignBtn">Auto-Assign Teams Randomly</button>
+
+          <div class="form-group">
+            <label>Unassigned Players (tap to assign)</label>
+            <div class="unassigned-players" id="unassignedPlayers"></div>
+          </div>
+        </div>
       </div>
-      <div class="form-group">
-        <label>Opening Batsman 2</label>
-        <select id="openingBat2">
-          <option value="">Select player...</option>
-        </select>
+
+      <div class="card">
+        <div class="card-title">Team A</div>
+        <div class="form-group">
+          <label>Team Name</label>
+          <input type="text" id="teamAName" placeholder="Enter team name" value="Team A">
+        </div>
+        <div class="form-group">
+          <label>Players (tap to move, or drag on desktop)</label>
+
+          <!-- Quick Add Section -->
+          <div class="quick-add-section">
+            <div class="quick-add-title">Quick Add by Code</div>
+            <input type="text" id="teamAQuickAdd" placeholder="JOSM-1234 JADO-5678 MIWI-9012" class="quick-add-input">
+            <div class="bulk-status" id="teamABulkStatus"></div>
+            <button type="button" class="quick-add-btn" id="teamAQuickAddBtn">Add Players</button>
+            <p class="quick-add-hint">Enter one or more player codes separated by spaces</p>
+          </div>
+
+          <div class="player-input-container">
+            <input type="text" id="teamAPlayerInput" placeholder="Player name" class="players-input">
+            <div class="code-input" id="teamACodeInput">
+              <input type="text" id="teamAPlayerCode" placeholder="Player code (optional, e.g. JOSM-1234)" maxlength="9">
+            </div>
+            <div class="verification-status" id="teamAVerificationStatus"></div>
+            <button type="button" class="add-player-btn" id="teamAAddBtn">Add Player</button>
+          </div>
+          <div class="player-tags" id="teamAPlayers"></div>
+          <p class="hint">Enter name and optionally add player code for verification</p>
+        </div>
       </div>
-      <div class="form-group">
-        <label>Opening Bowler</label>
-        <select id="openingBowler">
-          <option value="">Select player...</option>
-        </select>
+
+      <div class="card">
+        <div class="card-title">Team B</div>
+        <div class="form-group">
+          <label>Team Name</label>
+          <input type="text" id="teamBName" placeholder="Enter team name" value="Team B">
+        </div>
+        <div class="form-group">
+          <label>Players (tap to move, or drag on desktop)</label>
+
+          <!-- Quick Add Section -->
+          <div class="quick-add-section">
+            <div class="quick-add-title">Quick Add by Code</div>
+            <input type="text" id="teamBQuickAdd" placeholder="JOSM-1234 JADO-5678 MIWI-9012" class="quick-add-input">
+            <div class="bulk-status" id="teamBBulkStatus"></div>
+            <button type="button" class="quick-add-btn" id="teamBQuickAddBtn">Add Players</button>
+            <p class="quick-add-hint">Enter one or more player codes separated by spaces</p>
+          </div>
+
+          <div class="player-input-container">
+            <input type="text" id="teamBPlayerInput" placeholder="Player name" class="players-input">
+            <div class="code-input" id="teamBCodeInput">
+              <input type="text" id="teamBPlayerCode" placeholder="Player code (optional, e.g. JOSM-1234)" maxlength="9">
+            </div>
+            <div class="verification-status" id="teamBVerificationStatus"></div>
+            <button type="button" class="add-player-btn" id="teamBAddBtn">Add Player</button>
+          </div>
+          <div class="player-tags" id="teamBPlayers"></div>
+          <p class="hint">Enter name and optionally add player code for verification</p>
+        </div>
       </div>
-      <p class="hint">Add players to teams first, then select openers</p>
+
+      <div class="wizard-nav">
+        <button type="button" class="btn-prev" onclick="prevStep()">← Back</button>
+        <button type="button" class="btn-next" onclick="nextStep()">Continue →</button>
+      </div>
     </div>
 
-    <button class="btn btn-primary" id="startMatch">Start Match</button>
+    <!-- STEP 4: Toss -->
+    <div class="wizard-step" id="step4" data-step="4">
+      <div class="card">
+        <div class="card-title">Toss</div>
+        <div class="form-group">
+          <label>Who won the toss?</label>
+          <select id="tossWinner">
+            <option value="teamA">Team A</option>
+            <option value="teamB">Team B</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Elected to</label>
+          <select id="tossDecision">
+            <option value="bat">Bat First</option>
+            <option value="bowl">Bowl First</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="wizard-nav">
+        <button type="button" class="btn-prev" onclick="prevStep()">← Back</button>
+        <button type="button" class="btn-next" onclick="nextStep()">Continue →</button>
+      </div>
+    </div>
+
+    <!-- STEP 5: Opening Players -->
+    <div class="wizard-step" id="step5" data-step="5">
+      <div class="card">
+        <div class="card-title">Opening Players</div>
+        <div class="form-group">
+          <label>Opening Batsman 1</label>
+          <select id="openingBat1">
+            <option value="">Select player...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Opening Batsman 2</label>
+          <select id="openingBat2">
+            <option value="">Select player...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Opening Bowler</label>
+          <select id="openingBowler">
+            <option value="">Select player...</option>
+          </select>
+        </div>
+        <p class="hint">Select opening batsmen from the batting team and opening bowler from the bowling team</p>
+      </div>
+
+      <div class="wizard-nav">
+        <button type="button" class="btn-prev" onclick="prevStep()">← Back</button>
+        <button type="button" class="btn-next" onclick="nextStep()">Review →</button>
+      </div>
+    </div>
+
+    <!-- STEP 6: Review and Start -->
+    <div class="wizard-step" id="step6" data-step="6">
+      <div class="card">
+        <div class="card-title">Review Match Setup</div>
+        <div id="reviewContent"></div>
+      </div>
+
+      <div class="wizard-nav">
+        <button type="button" class="btn-prev" onclick="prevStep()">← Back</button>
+        <button type="button" class="btn-next" id="startMatch">Start Match</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Player Actions Menu (Mobile-Friendly) -->
+  <div class="player-actions" id="playerActionsMenu">
+    <div class="player-actions-title" id="playerActionsTitle">Move Player</div>
+    <div class="player-actions-buttons" id="playerActionsButtons">
+      <!-- Buttons will be dynamically added here -->
+    </div>
   </div>
 
   <script>
+    // Wizard State
+    let currentStep = 1;
+    const totalSteps = 6;
+
     // State management
     const state = {
       teamA: { name: 'Team A', players: [] },
@@ -769,6 +1155,256 @@ InstallCheck::requireInstalled();
       loadedMatchId: null,
       unassignedPlayers: []
     };
+
+    // Player selection state (for tap-to-move)
+    let selectedPlayer = null;
+
+    // Show player action menu
+    function showPlayerActions(player, sourceTeam, index) {
+      selectedPlayer = { player, sourceTeam, index };
+
+      const menu = document.getElementById('playerActionsMenu');
+      const title = document.getElementById('playerActionsTitle');
+      const buttonsContainer = document.getElementById('playerActionsButtons');
+
+      title.textContent = `Move "${player.name}"`;
+      buttonsContainer.innerHTML = '';
+
+      // Create action buttons based on source
+      if (sourceTeam === 'unassigned') {
+        // From unassigned: can move to Team A or Team B
+        const teamABtn = document.createElement('button');
+        teamABtn.className = 'player-action-btn';
+        teamABtn.textContent = `Move to ${state.teamA.name}`;
+        teamABtn.onclick = () => {
+          movePlayerToTeam(index, 'teamA');
+          hidePlayerActions();
+        };
+
+        const teamBBtn = document.createElement('button');
+        teamBBtn.className = 'player-action-btn';
+        teamBBtn.textContent = `Move to ${state.teamB.name}`;
+        teamBBtn.onclick = () => {
+          movePlayerToTeam(index, 'teamB');
+          hidePlayerActions();
+        };
+
+        buttonsContainer.appendChild(teamABtn);
+        buttonsContainer.appendChild(teamBBtn);
+      } else {
+        // From a team: can move to other team or back to unassigned
+        const otherTeam = sourceTeam === 'teamA' ? 'teamB' : 'teamA';
+        const otherTeamName = state[otherTeam].name;
+
+        const moveBtn = document.createElement('button');
+        moveBtn.className = 'player-action-btn';
+        moveBtn.textContent = `Move to ${otherTeamName}`;
+        moveBtn.onclick = () => {
+          movePlayerBetweenTeams(sourceTeam, index, otherTeam);
+          hidePlayerActions();
+        };
+
+        buttonsContainer.appendChild(moveBtn);
+
+        // Only show "Back to Unassigned" if we're in step 3 and unassigned section is visible
+        if (currentStep === 3 && document.getElementById('teamAssignmentSection').classList.contains('active')) {
+          const unassignBtn = document.createElement('button');
+          unassignBtn.className = 'player-action-btn';
+          unassignBtn.textContent = 'Back to Unassigned';
+          unassignBtn.onclick = () => {
+            movePlayerToUnassigned(sourceTeam, index);
+            hidePlayerActions();
+          };
+          buttonsContainer.appendChild(unassignBtn);
+        }
+      }
+
+      // Cancel button
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'player-action-btn danger';
+      cancelBtn.textContent = 'Cancel';
+      cancelBtn.onclick = hidePlayerActions;
+      buttonsContainer.appendChild(cancelBtn);
+
+      menu.classList.add('active');
+    }
+
+    // Hide player action menu
+    function hidePlayerActions() {
+      const menu = document.getElementById('playerActionsMenu');
+      menu.classList.remove('active');
+
+      // Remove selected state from all players
+      document.querySelectorAll('.player-tag.selected, .player-chip.selected').forEach(el => {
+        el.classList.remove('selected');
+      });
+
+      selectedPlayer = null;
+    }
+
+    // Close menu when clicking outside
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('playerActionsMenu');
+      if (menu.classList.contains('active') &&
+          !menu.contains(e.target) &&
+          !e.target.classList.contains('player-tag') &&
+          !e.target.classList.contains('player-chip')) {
+        hidePlayerActions();
+      }
+    });
+
+    // Wizard Navigation Functions
+    function goToStep(step) {
+      // Hide error message when changing steps
+      document.getElementById('errorMsg').style.display = 'none';
+
+      // Hide all steps
+      document.querySelectorAll('.wizard-step').forEach(el => {
+        el.classList.remove('active');
+      });
+
+      // Show target step
+      document.getElementById(`step${step}`).classList.add('active');
+      currentStep = step;
+
+      // Update progress indicator
+      updateProgressIndicator();
+
+      // Update team assignment section visibility
+      if (step === 3) {
+        document.getElementById('teamAssignmentSection').classList.toggle('active',
+          state.unassignedPlayers.length > 0);
+      }
+
+      // Generate review content if on step 6
+      if (step === 6) {
+        generateReviewContent();
+      }
+
+      // Scroll to top
+      window.scrollTo(0, 0);
+    }
+
+    function nextStep() {
+      // Validation before moving forward
+      if (currentStep === 3 && !validateTeams()) {
+        return;
+      }
+      if (currentStep === 5 && !validateOpeningPlayers()) {
+        return;
+      }
+
+      if (currentStep < totalSteps) {
+        goToStep(currentStep + 1);
+      }
+    }
+
+    function prevStep() {
+      if (currentStep > 1) {
+        goToStep(currentStep - 1);
+      }
+    }
+
+    function updateProgressIndicator() {
+      document.querySelectorAll('.progress-step').forEach(el => {
+        const step = parseInt(el.dataset.step);
+        el.classList.remove('active', 'completed');
+
+        if (step === currentStep) {
+          el.classList.add('active');
+        } else if (step < currentStep) {
+          el.classList.add('completed');
+          el.querySelector('.progress-step-circle').innerHTML = '&#10003;';
+        } else {
+          el.querySelector('.progress-step-circle').textContent = step;
+        }
+      });
+    }
+
+    function validateTeams() {
+      const errorMsg = document.getElementById('errorMsg');
+
+      if (!state.teamA.name.trim() || !state.teamB.name.trim()) {
+        errorMsg.textContent = 'Please enter names for both teams';
+        errorMsg.style.display = 'block';
+        return false;
+      }
+
+      if (state.teamA.players.length < 2) {
+        errorMsg.textContent = 'Team A needs at least 2 players';
+        errorMsg.style.display = 'block';
+        return false;
+      }
+
+      if (state.teamB.players.length < 2) {
+        errorMsg.textContent = 'Team B needs at least 2 players';
+        errorMsg.style.display = 'block';
+        return false;
+      }
+
+      return true;
+    }
+
+    function validateOpeningPlayers() {
+      const errorMsg = document.getElementById('errorMsg');
+
+      if (!state.openingBat1 || !state.openingBat2) {
+        errorMsg.textContent = 'Please select both opening batsmen';
+        errorMsg.style.display = 'block';
+        return false;
+      }
+
+      if (state.openingBat1 === state.openingBat2) {
+        errorMsg.textContent = 'Opening batsmen must be different players';
+        errorMsg.style.display = 'block';
+        return false;
+      }
+
+      if (!state.openingBowler) {
+        errorMsg.textContent = 'Please select an opening bowler';
+        errorMsg.style.display = 'block';
+        return false;
+      }
+
+      return true;
+    }
+
+    function generateReviewContent() {
+      const container = document.getElementById('reviewContent');
+      const battingTeam = state.tossDecision === 'bat' ? state.tossWinner :
+                          (state.tossWinner === 'teamA' ? 'teamB' : 'teamA');
+      const battingTeamName = state[battingTeam].name;
+      const bowlingTeamName = state[battingTeam === 'teamA' ? 'teamB' : 'teamA'].name;
+
+      container.innerHTML = `
+        <div style="padding: 16px; background: var(--bg); border-radius: 8px; margin-bottom: 16px;">
+          <h3 style="font-size: 14px; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Match Format</h3>
+          <p style="font-size: 16px; font-weight: 600;">${state.matchFormat === 'limited' ? 'Limited Overs' : 'Test Match'} - ${state.oversPerInnings} overs, ${state.wicketsLimit} wickets</p>
+        </div>
+
+        <div style="padding: 16px; background: var(--bg); border-radius: 8px; margin-bottom: 16px;">
+          <h3 style="font-size: 14px; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Teams</h3>
+          <p style="font-size: 16px; font-weight: 600; margin-bottom: 4px;">${state.teamA.name} (${state.teamA.players.length} players)</p>
+          <p style="font-size: 14px; color: var(--muted); margin-bottom: 12px;">${state.teamA.players.map(p => p.name).join(', ')}</p>
+
+          <p style="font-size: 16px; font-weight: 600; margin-bottom: 4px;">${state.teamB.name} (${state.teamB.players.length} players)</p>
+          <p style="font-size: 14px; color: var(--muted);">${state.teamB.players.map(p => p.name).join(', ')}</p>
+        </div>
+
+        <div style="padding: 16px; background: var(--bg); border-radius: 8px; margin-bottom: 16px;">
+          <h3 style="font-size: 14px; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Toss</h3>
+          <p style="font-size: 16px; font-weight: 600;">${state[state.tossWinner].name} won the toss and elected to ${state.tossDecision === 'bat' ? 'bat first' : 'bowl first'}</p>
+        </div>
+
+        <div style="padding: 16px; background: var(--bg); border-radius: 8px;">
+          <h3 style="font-size: 14px; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Opening Players</h3>
+          <p style="font-size: 16px; font-weight: 600; margin-bottom: 4px;">Batting: ${battingTeamName}</p>
+          <p style="font-size: 14px; color: var(--muted); margin-bottom: 8px;">${state.openingBat1} and ${state.openingBat2}</p>
+          <p style="font-size: 16px; font-weight: 600; margin-bottom: 4px;">Bowling: ${bowlingTeamName}</p>
+          <p style="font-size: 14px; color: var(--muted);">${state.openingBowler}</p>
+        </div>
+      `;
+    }
 
     // Load scheduled match by ID
     async function loadScheduledMatch(matchId) {
@@ -842,7 +1478,14 @@ InstallCheck::requireInstalled();
         chip.draggable = true;
         chip.dataset.playerIndex = index;
 
-        // Drag events
+        // Click/tap to show action menu
+        chip.addEventListener('click', (e) => {
+          e.stopPropagation();
+          chip.classList.add('selected');
+          showPlayerActions(player, 'unassigned', index);
+        });
+
+        // Drag events (keep for desktop users)
         chip.addEventListener('dragstart', (e) => {
           e.dataTransfer.setData('text/plain', index);
           chip.classList.add('dragging');
@@ -904,20 +1547,115 @@ InstallCheck::requireInstalled();
     function setupDragDrop() {
       const teamAContainer = document.getElementById('teamAPlayers');
       const teamBContainer = document.getElementById('teamBPlayers');
+      const unassignedContainer = document.getElementById('unassignedPlayers');
 
+      // Setup drop zones for teams
       [teamAContainer, teamBContainer].forEach(container => {
         container.addEventListener('dragover', (e) => {
           e.preventDefault();
           e.dataTransfer.dropEffect = 'move';
+          container.classList.add('drag-over');
+        });
+
+        container.addEventListener('dragleave', (e) => {
+          if (e.target === container) {
+            container.classList.remove('drag-over');
+          }
         });
 
         container.addEventListener('drop', (e) => {
           e.preventDefault();
-          const playerIndex = parseInt(e.dataTransfer.getData('text/plain'));
-          const team = container.id.replace('Players', '');
-          movePlayerToTeam(playerIndex, team);
+          container.classList.remove('drag-over');
+
+          const targetTeam = container.id.replace('Players', '');
+          const data = e.dataTransfer.getData('text/plain');
+
+          try {
+            // Try to parse as JSON (from team player)
+            const dragData = JSON.parse(data);
+            movePlayerBetweenTeams(dragData.team, dragData.index, targetTeam);
+          } catch {
+            // Parse as index (from unassigned players)
+            const playerIndex = parseInt(data);
+            if (!isNaN(playerIndex)) {
+              movePlayerToTeam(playerIndex, targetTeam);
+            }
+          }
         });
       });
+
+      // Setup drop zone for unassigned (to move players back)
+      unassignedContainer.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        unassignedContainer.classList.add('drag-over');
+      });
+
+      unassignedContainer.addEventListener('dragleave', (e) => {
+        if (e.target === unassignedContainer) {
+          unassignedContainer.classList.remove('drag-over');
+        }
+      });
+
+      unassignedContainer.addEventListener('drop', (e) => {
+        e.preventDefault();
+        unassignedContainer.classList.remove('drag-over');
+
+        const data = e.dataTransfer.getData('text/plain');
+
+        try {
+          // Parse as JSON (from team player)
+          const dragData = JSON.parse(data);
+          movePlayerToUnassigned(dragData.team, dragData.index);
+        } catch {
+          // Ignore drops from unassigned to unassigned
+        }
+      });
+    }
+
+    // Move player between teams or within same team
+    function movePlayerBetweenTeams(fromTeam, fromIndex, toTeam) {
+      // Check if moving within same team (reordering) - ignore for now
+      if (fromTeam === toTeam) {
+        return;
+      }
+
+      // Check for duplicates
+      const player = state[fromTeam].players[fromIndex];
+      const exists = state[toTeam].players.some(p => p.name === player.name);
+      if (exists) {
+        const errorMsg = document.getElementById('errorMsg');
+        errorMsg.textContent = `${player.name} is already in ${state[toTeam].name}`;
+        errorMsg.style.display = 'block';
+        setTimeout(() => {
+          errorMsg.style.display = 'none';
+        }, 3000);
+        return;
+      }
+
+      // Move player
+      state[toTeam].players.push(player);
+      state[fromTeam].players.splice(fromIndex, 1);
+
+      renderPlayers(fromTeam);
+      renderPlayers(toTeam);
+      updateOpeningSelects();
+    }
+
+    // Move player from team to unassigned
+    function movePlayerToUnassigned(fromTeam, fromIndex) {
+      const player = state[fromTeam].players[fromIndex];
+      state.unassignedPlayers.push(player);
+      state[fromTeam].players.splice(fromIndex, 1);
+
+      renderPlayers(fromTeam);
+      renderUnassignedPlayers();
+      updateOpeningSelects();
+
+      // Show assignment section if hidden
+      if (state.unassignedPlayers.length > 0 && currentStep === 3) {
+        document.getElementById('teamAssignmentSection').classList.add('active');
+      }
     }
 
     // Event listener for Load Match button
@@ -942,7 +1680,15 @@ InstallCheck::requireInstalled();
       if (result.success) {
         setTimeout(() => {
           statusEl.classList.remove('active');
-        }, 3000);
+          // Auto-advance to next step after successful load
+          if (state.unassignedPlayers.length > 0) {
+            // If there are unassigned players, go to step 3 (Team Configuration)
+            goToStep(3);
+          } else {
+            // Otherwise go to step 2 (Match Details)
+            goToStep(2);
+          }
+        }, 1500);
       }
     });
 
@@ -1070,9 +1816,9 @@ InstallCheck::requireInstalled();
       renderPlayers(team);
 
       // Show results
-      let message = `✓ Added ${added} player(s)`;
+      let message = `Added ${added} player(s)`;
       if (failed > 0) {
-        message += ` • ${failed} failed: ${failedCodes.join(', ')}`;
+        message += ` - ${failed} failed: ${failedCodes.join(', ')}`;
       }
       showBulkStatus(team, message, failed > 0 ? 'error' : 'success');
 
@@ -1121,14 +1867,14 @@ InstallCheck::requireInstalled();
           playerData.playerId = verification.player.id;
           playerData.code = verification.player.code;
           playerData.name = verification.player.name; // Use registered name
-          showVerificationStatus(team, `✓ Verified as ${verification.player.name}`, 'success');
+          showVerificationStatus(team, `Verified as ${verification.player.name}`, 'success');
         } else {
-          showVerificationStatus(team, '✗ Code invalid or doesn\'t match', 'error');
+          showVerificationStatus(team, 'Code invalid or doesn\'t match', 'error');
           setTimeout(() => hideVerificationStatus(team), 3000);
           return;
         }
       } else {
-        showVerificationStatus(team, '✓ Added as guest player', 'success');
+        showVerificationStatus(team, 'Added as guest player', 'success');
       }
 
       state[team].players.push(playerData);
@@ -1154,6 +1900,33 @@ InstallCheck::requireInstalled();
       state[team].players.forEach((player, index) => {
         const tag = document.createElement('div');
         tag.className = player.verified ? 'player-tag verified' : 'player-tag';
+        tag.draggable = true;
+        tag.dataset.team = team;
+        tag.dataset.playerIndex = index;
+
+        // Click/tap to show action menu (mobile-friendly)
+        tag.addEventListener('click', (e) => {
+          // Don't trigger if clicking the remove button
+          if (e.target.tagName === 'BUTTON') return;
+          e.stopPropagation();
+          tag.classList.add('selected');
+          showPlayerActions(player, team, index);
+        });
+
+        // Drag events for player tags (keep for desktop)
+        tag.addEventListener('dragstart', (e) => {
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', JSON.stringify({
+            team: team,
+            index: index,
+            player: player
+          }));
+          tag.classList.add('dragging');
+        });
+
+        tag.addEventListener('dragend', () => {
+          tag.classList.remove('dragging');
+        });
 
         const nameSpan = document.createElement('span');
         nameSpan.textContent = player.name;
@@ -1161,7 +1934,7 @@ InstallCheck::requireInstalled();
         if (player.verified) {
           const badge = document.createElement('span');
           badge.className = 'verified-badge';
-          badge.textContent = '✓ Verified';
+          badge.textContent = 'Verified';
           tag.appendChild(badge);
         }
 
@@ -1169,7 +1942,10 @@ InstallCheck::requireInstalled();
         removeBtn.textContent = '×';
         removeBtn.setAttribute('type', 'button');
         removeBtn.setAttribute('aria-label', `Remove ${player.name}`);
-        removeBtn.addEventListener('click', () => removePlayer(team, index));
+        removeBtn.addEventListener('click', (e) => {
+          e.stopPropagation(); // Prevent menu from opening
+          removePlayer(team, index);
+        });
 
         tag.appendChild(nameSpan);
         tag.appendChild(removeBtn);
@@ -1442,7 +2218,7 @@ InstallCheck::requireInstalled();
     if (saved) {
       const loaded = JSON.parse(saved);
       Object.assign(state, loaded);
-      
+
       document.getElementById('teamAName').value = state.teamA.name;
       document.getElementById('teamBName').value = state.teamB.name;
       document.getElementById('oversPerInnings').value = state.oversPerInnings;
@@ -1450,15 +2226,20 @@ InstallCheck::requireInstalled();
       document.getElementById('matchFormat').value = state.matchFormat;
       document.getElementById('tossWinner').value = state.tossWinner;
       document.getElementById('tossDecision').value = state.tossDecision;
-      
+
       renderPlayers('teamA');
       renderPlayers('teamB');
       updateOpeningSelects();
-      
+
       if (state.openingBat1) document.getElementById('openingBat1').value = state.openingBat1;
       if (state.openingBat2) document.getElementById('openingBat2').value = state.openingBat2;
       if (state.openingBowler) document.getElementById('openingBowler').value = state.openingBowler;
     }
+
+    // Initialize wizard on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      goToStep(1);
+    });
   </script>
 </body>
 </html>
