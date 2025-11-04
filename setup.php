@@ -511,8 +511,8 @@ InstallCheck::requireInstalled();
     }
 
     .quick-add-title::before {
-      content: '⚡';
-      font-size: 16px;
+      content: '';
+      display: none;
     }
 
     .quick-add-input {
@@ -623,8 +623,8 @@ InstallCheck::requireInstalled();
     }
 
     .load-match-title::before {
-      content: '🎯';
-      font-size: 24px;
+      content: '';
+      display: none;
     }
 
     .load-match-subtitle {
@@ -844,7 +844,7 @@ InstallCheck::requireInstalled();
       <div class="team-assignment-section" id="teamAssignmentSection">
         <div class="card">
           <div class="card-title">Assign Players to Teams</div>
-          <button type="button" class="auto-assign-btn" id="autoAssignBtn">⚡ Auto-Assign Teams Randomly</button>
+          <button type="button" class="auto-assign-btn" id="autoAssignBtn">Auto-Assign Teams Randomly</button>
 
           <div class="form-group">
             <label>Unassigned Players (Drag to teams below)</label>
@@ -987,7 +987,7 @@ InstallCheck::requireInstalled();
 
       <div class="wizard-nav">
         <button type="button" class="btn-prev" onclick="prevStep()">← Back</button>
-        <button type="button" class="btn-next" id="startMatch">Start Match 🎯</button>
+        <button type="button" class="btn-next" id="startMatch">Start Match</button>
       </div>
     </div>
   </div>
@@ -1074,7 +1074,7 @@ InstallCheck::requireInstalled();
           el.classList.add('active');
         } else if (step < currentStep) {
           el.classList.add('completed');
-          el.querySelector('.progress-step-circle').textContent = '✓';
+          el.querySelector('.progress-step-circle').innerHTML = '&#10003;';
         } else {
           el.querySelector('.progress-step-circle').textContent = step;
         }
@@ -1433,7 +1433,15 @@ InstallCheck::requireInstalled();
       if (result.success) {
         setTimeout(() => {
           statusEl.classList.remove('active');
-        }, 3000);
+          // Auto-advance to next step after successful load
+          if (state.unassignedPlayers.length > 0) {
+            // If there are unassigned players, go to step 3 (Team Configuration)
+            goToStep(3);
+          } else {
+            // Otherwise go to step 2 (Match Details)
+            goToStep(2);
+          }
+        }, 1500);
       }
     });
 
@@ -1561,9 +1569,9 @@ InstallCheck::requireInstalled();
       renderPlayers(team);
 
       // Show results
-      let message = `✓ Added ${added} player(s)`;
+      let message = `Added ${added} player(s)`;
       if (failed > 0) {
-        message += ` • ${failed} failed: ${failedCodes.join(', ')}`;
+        message += ` - ${failed} failed: ${failedCodes.join(', ')}`;
       }
       showBulkStatus(team, message, failed > 0 ? 'error' : 'success');
 
@@ -1612,14 +1620,14 @@ InstallCheck::requireInstalled();
           playerData.playerId = verification.player.id;
           playerData.code = verification.player.code;
           playerData.name = verification.player.name; // Use registered name
-          showVerificationStatus(team, `✓ Verified as ${verification.player.name}`, 'success');
+          showVerificationStatus(team, `Verified as ${verification.player.name}`, 'success');
         } else {
-          showVerificationStatus(team, '✗ Code invalid or doesn\'t match', 'error');
+          showVerificationStatus(team, 'Code invalid or doesn\'t match', 'error');
           setTimeout(() => hideVerificationStatus(team), 3000);
           return;
         }
       } else {
-        showVerificationStatus(team, '✓ Added as guest player', 'success');
+        showVerificationStatus(team, 'Added as guest player', 'success');
       }
 
       state[team].players.push(playerData);
@@ -1670,7 +1678,7 @@ InstallCheck::requireInstalled();
         if (player.verified) {
           const badge = document.createElement('span');
           badge.className = 'verified-badge';
-          badge.textContent = '✓ Verified';
+          badge.textContent = 'Verified';
           tag.appendChild(badge);
         }
 
