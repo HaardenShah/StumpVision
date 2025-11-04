@@ -17,7 +17,34 @@ class InstallCheck
         $dbPath = __DIR__ . '/../../data/stumpvision.db';
         $configPath = __DIR__ . '/../../config/config.json';
 
-        return file_exists($dbPath) && file_exists($configPath);
+        // Both files must exist
+        if (!file_exists($dbPath) || !file_exists($configPath)) {
+            return false;
+        }
+
+        // Verify database has required tables (not just an empty file)
+        try {
+            $pdo = new \PDO('sqlite:' . $dbPath);
+            $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+
+            // Check if migrations table exists and has at least one migration
+            $stmt = $pdo->query("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='migrations'");
+            $hasMigrationsTable = $stmt->fetchColumn() > 0;
+
+            if (!$hasMigrationsTable) {
+                return false;
+            }
+
+            // Check if we have at least one migration record
+            $stmt = $pdo->query("SELECT COUNT(*) FROM migrations");
+            $hasMigrations = $stmt->fetchColumn() > 0;
+
+            return $hasMigrations;
+
+        } catch (\PDOException $e) {
+            // If we can't connect or query the database, it's not properly installed
+            return false;
+        }
     }
 
     /**
