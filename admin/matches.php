@@ -141,7 +141,12 @@ if (isset($_GET['view'])) {
                         <?php if (isset($teams[0]['players'])): ?>
                             <ul style="list-style: none; padding: 0;">
                                 <?php foreach ($teams[0]['players'] as $player): ?>
-                                    <li style="padding: 4px 0;"><?php echo htmlspecialchars($player); ?></li>
+                                    <li style="padding: 4px 0;">
+                                        <?php
+                                        $playerName = is_array($player) ? ($player['name'] ?? $player['id'] ?? 'Unknown') : $player;
+                                        echo htmlspecialchars($playerName);
+                                        ?>
+                                    </li>
                                 <?php endforeach; ?>
                             </ul>
                         <?php endif; ?>
@@ -152,7 +157,12 @@ if (isset($_GET['view'])) {
                         <?php if (isset($teams[1]['players'])): ?>
                             <ul style="list-style: none; padding: 0;">
                                 <?php foreach ($teams[1]['players'] as $player): ?>
-                                    <li style="padding: 4px 0;"><?php echo htmlspecialchars($player); ?></li>
+                                    <li style="padding: 4px 0;">
+                                        <?php
+                                        $playerName = is_array($player) ? ($player['name'] ?? $player['id'] ?? 'Unknown') : $player;
+                                        echo htmlspecialchars($playerName);
+                                        ?>
+                                    </li>
                                 <?php endforeach; ?>
                             </ul>
                         <?php endif; ?>
