@@ -317,9 +317,10 @@ InstallCheck::requireInstalled();
       align-items: center;
       gap: 8px;
       animation: fadeIn 0.2s;
-      cursor: move;
+      cursor: pointer;
       user-select: none;
       transition: all 0.2s;
+      position: relative;
     }
 
     .player-tag:hover {
@@ -330,6 +331,95 @@ InstallCheck::requireInstalled();
     .player-tag.dragging {
       opacity: 0.4;
       transform: scale(0.95);
+    }
+
+    .player-tag.selected {
+      background: var(--accent);
+      color: white;
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px var(--shadow);
+    }
+
+    .player-tag.selected .verified-badge {
+      background: rgba(255, 255, 255, 0.3);
+      color: white;
+    }
+
+    /* Player Action Menu */
+    .player-actions {
+      display: none;
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--card);
+      border: 3px solid var(--accent);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 8px 32px var(--shadow);
+      z-index: 1000;
+      min-width: 280px;
+      animation: slideUp 0.3s ease-out;
+    }
+
+    .player-actions.active {
+      display: block;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+    }
+
+    .player-actions-title {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 12px;
+      text-align: center;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .player-actions-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .player-action-btn {
+      padding: 12px 16px;
+      border: 2px solid var(--line);
+      border-radius: 12px;
+      background: var(--bg);
+      color: var(--ink);
+      font-weight: 600;
+      font-size: 15px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .player-action-btn:hover {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      transform: translateY(-2px);
+    }
+
+    .player-action-btn.danger {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    .player-action-btn.danger:hover {
+      background: #fee2e2;
+      border-color: var(--danger);
     }
 
     .player-tag.verified {
@@ -757,7 +847,7 @@ InstallCheck::requireInstalled();
       border-radius: 999px;
       font-size: 14px;
       font-weight: 600;
-      cursor: move;
+      cursor: pointer;
       transition: all 0.2s;
       user-select: none;
     }
@@ -769,6 +859,14 @@ InstallCheck::requireInstalled();
 
     .player-chip.dragging {
       opacity: 0.5;
+    }
+
+    .player-chip.selected {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px var(--shadow);
     }
 
     .auto-assign-btn {
@@ -884,7 +982,7 @@ InstallCheck::requireInstalled();
           <button type="button" class="auto-assign-btn" id="autoAssignBtn">Auto-Assign Teams Randomly</button>
 
           <div class="form-group">
-            <label>Unassigned Players (Drag to teams below)</label>
+            <label>Unassigned Players (tap to assign)</label>
             <div class="unassigned-players" id="unassignedPlayers"></div>
           </div>
         </div>
@@ -897,7 +995,7 @@ InstallCheck::requireInstalled();
           <input type="text" id="teamAName" placeholder="Enter team name" value="Team A">
         </div>
         <div class="form-group">
-          <label>Players (drag to reorder or move between teams)</label>
+          <label>Players (tap to move, or drag on desktop)</label>
 
           <!-- Quick Add Section -->
           <div class="quick-add-section">
@@ -928,7 +1026,7 @@ InstallCheck::requireInstalled();
           <input type="text" id="teamBName" placeholder="Enter team name" value="Team B">
         </div>
         <div class="form-group">
-          <label>Players (drag to reorder or move between teams)</label>
+          <label>Players (tap to move, or drag on desktop)</label>
 
           <!-- Quick Add Section -->
           <div class="quick-add-section">
@@ -1029,6 +1127,14 @@ InstallCheck::requireInstalled();
     </div>
   </div>
 
+  <!-- Player Actions Menu (Mobile-Friendly) -->
+  <div class="player-actions" id="playerActionsMenu">
+    <div class="player-actions-title" id="playerActionsTitle">Move Player</div>
+    <div class="player-actions-buttons" id="playerActionsButtons">
+      <!-- Buttons will be dynamically added here -->
+    </div>
+  </div>
+
   <script>
     // Wizard State
     let currentStep = 1;
@@ -1049,6 +1155,103 @@ InstallCheck::requireInstalled();
       loadedMatchId: null,
       unassignedPlayers: []
     };
+
+    // Player selection state (for tap-to-move)
+    let selectedPlayer = null;
+
+    // Show player action menu
+    function showPlayerActions(player, sourceTeam, index) {
+      selectedPlayer = { player, sourceTeam, index };
+
+      const menu = document.getElementById('playerActionsMenu');
+      const title = document.getElementById('playerActionsTitle');
+      const buttonsContainer = document.getElementById('playerActionsButtons');
+
+      title.textContent = `Move "${player.name}"`;
+      buttonsContainer.innerHTML = '';
+
+      // Create action buttons based on source
+      if (sourceTeam === 'unassigned') {
+        // From unassigned: can move to Team A or Team B
+        const teamABtn = document.createElement('button');
+        teamABtn.className = 'player-action-btn';
+        teamABtn.textContent = `Move to ${state.teamA.name}`;
+        teamABtn.onclick = () => {
+          movePlayerToTeam(index, 'teamA');
+          hidePlayerActions();
+        };
+
+        const teamBBtn = document.createElement('button');
+        teamBBtn.className = 'player-action-btn';
+        teamBBtn.textContent = `Move to ${state.teamB.name}`;
+        teamBBtn.onclick = () => {
+          movePlayerToTeam(index, 'teamB');
+          hidePlayerActions();
+        };
+
+        buttonsContainer.appendChild(teamABtn);
+        buttonsContainer.appendChild(teamBBtn);
+      } else {
+        // From a team: can move to other team or back to unassigned
+        const otherTeam = sourceTeam === 'teamA' ? 'teamB' : 'teamA';
+        const otherTeamName = state[otherTeam].name;
+
+        const moveBtn = document.createElement('button');
+        moveBtn.className = 'player-action-btn';
+        moveBtn.textContent = `Move to ${otherTeamName}`;
+        moveBtn.onclick = () => {
+          movePlayerBetweenTeams(sourceTeam, index, otherTeam);
+          hidePlayerActions();
+        };
+
+        buttonsContainer.appendChild(moveBtn);
+
+        // Only show "Back to Unassigned" if we're in step 3 and unassigned section is visible
+        if (currentStep === 3 && document.getElementById('teamAssignmentSection').classList.contains('active')) {
+          const unassignBtn = document.createElement('button');
+          unassignBtn.className = 'player-action-btn';
+          unassignBtn.textContent = 'Back to Unassigned';
+          unassignBtn.onclick = () => {
+            movePlayerToUnassigned(sourceTeam, index);
+            hidePlayerActions();
+          };
+          buttonsContainer.appendChild(unassignBtn);
+        }
+      }
+
+      // Cancel button
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'player-action-btn danger';
+      cancelBtn.textContent = 'Cancel';
+      cancelBtn.onclick = hidePlayerActions;
+      buttonsContainer.appendChild(cancelBtn);
+
+      menu.classList.add('active');
+    }
+
+    // Hide player action menu
+    function hidePlayerActions() {
+      const menu = document.getElementById('playerActionsMenu');
+      menu.classList.remove('active');
+
+      // Remove selected state from all players
+      document.querySelectorAll('.player-tag.selected, .player-chip.selected').forEach(el => {
+        el.classList.remove('selected');
+      });
+
+      selectedPlayer = null;
+    }
+
+    // Close menu when clicking outside
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('playerActionsMenu');
+      if (menu.classList.contains('active') &&
+          !menu.contains(e.target) &&
+          !e.target.classList.contains('player-tag') &&
+          !e.target.classList.contains('player-chip')) {
+        hidePlayerActions();
+      }
+    });
 
     // Wizard Navigation Functions
     function goToStep(step) {
@@ -1275,7 +1478,14 @@ InstallCheck::requireInstalled();
         chip.draggable = true;
         chip.dataset.playerIndex = index;
 
-        // Drag events
+        // Click/tap to show action menu
+        chip.addEventListener('click', (e) => {
+          e.stopPropagation();
+          chip.classList.add('selected');
+          showPlayerActions(player, 'unassigned', index);
+        });
+
+        // Drag events (keep for desktop users)
         chip.addEventListener('dragstart', (e) => {
           e.dataTransfer.setData('text/plain', index);
           chip.classList.add('dragging');
@@ -1694,7 +1904,16 @@ InstallCheck::requireInstalled();
         tag.dataset.team = team;
         tag.dataset.playerIndex = index;
 
-        // Drag events for player tags
+        // Click/tap to show action menu (mobile-friendly)
+        tag.addEventListener('click', (e) => {
+          // Don't trigger if clicking the remove button
+          if (e.target.tagName === 'BUTTON') return;
+          e.stopPropagation();
+          tag.classList.add('selected');
+          showPlayerActions(player, team, index);
+        });
+
+        // Drag events for player tags (keep for desktop)
         tag.addEventListener('dragstart', (e) => {
           e.dataTransfer.effectAllowed = 'move';
           e.dataTransfer.setData('text/plain', JSON.stringify({
@@ -1724,7 +1943,7 @@ InstallCheck::requireInstalled();
         removeBtn.setAttribute('type', 'button');
         removeBtn.setAttribute('aria-label', `Remove ${player.name}`);
         removeBtn.addEventListener('click', (e) => {
-          e.stopPropagation(); // Prevent drag from triggering
+          e.stopPropagation(); // Prevent menu from opening
           removePlayer(team, index);
         });
 
