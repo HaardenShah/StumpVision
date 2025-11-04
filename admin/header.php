@@ -10,7 +10,7 @@
             <a href="schedule-match.php">Schedule Match</a>
             <a href="matches.php">Matches</a>
             <a href="players.php">Players</a>
-            <a href="stats.php">Stats</a>
+            <a href="stats-advanced.php">Stats</a>
             <a href="live-sessions.php">Live Sessions</a>
             <a href="settings.php">Settings</a>
         </nav>
