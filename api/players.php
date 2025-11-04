@@ -6,13 +6,27 @@ declare(strict_types=1);
  * Player Registry API (Database version)
  */
 
+require_once __DIR__ . '/lib/InstallCheck.php';
 require_once __DIR__ . '/lib/SessionConfig.php';
 require_once __DIR__ . '/lib/Common.php';
 require_once __DIR__ . '/lib/Database.php';
 require_once __DIR__ . '/lib/repositories/PlayerRepository.php';
 
+use StumpVision\InstallCheck;
 use StumpVision\Common;
 use StumpVision\Repositories\PlayerRepository;
+
+// Check if installed - return error if not
+if (!InstallCheck::isInstalled()) {
+    http_response_code(503);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'ok' => false,
+        'error' => 'not_installed',
+        'message' => 'StumpVision is not installed. Please complete the installation first.'
+    ]);
+    exit;
+}
 
 // Send security headers
 Common::sendSecurityHeaders('DENY');
