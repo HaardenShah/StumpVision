@@ -117,11 +117,11 @@ $recentMatches = $matchRepo->getRecent(5);
                         </div>
                     </a>
 
-                    <a href="stats.php" class="action-btn">
+                    <a href="stats-advanced.php" class="action-btn">
                         <span class="action-icon">📊</span>
                         <div>
                             <strong>View Stats</strong>
-                            <span>Aggregate player statistics</span>
+                            <span>Advanced leaderboards & analytics</span>
                         </div>
                     </a>
 
